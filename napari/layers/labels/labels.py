@@ -222,6 +222,7 @@ class Labels(Image):
     def seed(self, seed):
         self._seed = seed
         self._selected_color = self.get_color(self.selected_label)
+        # change num_colours to something else
         self.refresh()
         self.events.selected_label()
 
