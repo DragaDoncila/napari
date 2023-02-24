@@ -377,7 +377,7 @@ def _npe2_manifest_to_actions(
     actions: List[Action] = [
         Action(
             id=cmd.id,
-            title=cmd.title,
+            title=cmd.title + f' ({mf.display_name})',
             category=cmd.category,
             tooltip=cmd.short_title or cmd.title,
             icon=cmd.icon,

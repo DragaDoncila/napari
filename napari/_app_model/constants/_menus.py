@@ -28,20 +28,39 @@ class MenuId(str, Enum):
 
     MENUBAR_HELP = 'napari/help'
 
+    MENUBAR_LAYERS = 'napari/layers'
+    LAYERS_VISUALIZE = 'napari/layers/visualize'
+    
+    LAYERS_EDIT = 'napari/layers/edit'
+    LAYERS_EDIT_ANNOTATE = 'napari/layers/edit/annotate'
+    LAYERS_EDIT_FILTER = 'napari/layers/edit/filter'
+    LAYERS_EDIT_TRANSFORM = 'napari/layers/edit/transform'
+
+    LAYERS_MEASURE = 'napari/layers/measure'
+
+    LAYERS_GENERATE = 'napari/layers/generate'
+    LAYERS_GENERATE_REGISTRATION = 'napari/layers/generate/registration'
+    LAYERS_GENERATE_PROJECTION = 'napari/layers/generate/projection'
+    LAYERS_GENERATE_SEGMENTATION = 'napari/layers/generate/segmentation'
+    LAYERS_GENERATE_TRACKS = 'napari/layers/generate/tracks'
+    LAYERS_GENERATE_CLASSIFICATION = 'napari/layers/generate/classification'
+
+    # TOOLS_CLASSIFICATION = 'napari/tools/classification'
+    # TOOLS_FILTERS = 'napari/tools/filters'
+    # TOOLS_MEASUREMENT = 'napari/tools/measurement'
+    # TOOLS_SEGMENTATION = 'napari/tools/segmentation'
+    # TOOLS_PROJECTION = 'napari/tools/projection'
+    # TOOLS_TRANSFORM = 'napari/tools/transform'
+    # TOOLS_UTILITIES = 'napari/tools/utilities'
+    # TOOLS_VISUALIZATION = 'napari/tools/visualization'
+
+    MENUBAR_ACQUISITION = 'napari/acquisition'
+
     LAYERLIST_CONTEXT = 'napari/layers/context'
     LAYERS_CONVERT_DTYPE = 'napari/layers/convert_dtype'
     LAYERS_PROJECT = 'napari/layers/project'
 
-    MENUBAR_TOOLS = 'napari/tools'
-    TOOLS_ACQUISITION = 'napari/tools/acquisition'
-    TOOLS_CLASSIFICATION = 'napari/tools/classification'
-    TOOLS_FILTERS = 'napari/tools/filters'
-    TOOLS_MEASUREMENT = 'napari/tools/measurement'
-    TOOLS_SEGMENTATION = 'napari/tools/segmentation'
-    TOOLS_PROJECTION = 'napari/tools/projection'
-    TOOLS_TRANSFORM = 'napari/tools/transform'
-    TOOLS_UTILITIES = 'napari/tools/utilities'
-    TOOLS_VISUALIZATION = 'napari/tools/visualization'
+    # TODO: FILE MENU!!!
 
     def __str__(self) -> str:
         return self.value
@@ -55,15 +74,20 @@ class MenuId(str, Enum):
             cls.LAYERLIST_CONTEXT,
             cls.LAYERS_CONVERT_DTYPE,
             cls.LAYERS_PROJECT,
-            cls.TOOLS_ACQUISITION,
-            cls.TOOLS_CLASSIFICATION,
-            cls.TOOLS_FILTERS,
-            cls.TOOLS_MEASUREMENT,
-            cls.TOOLS_SEGMENTATION,
-            cls.TOOLS_PROJECTION,
-            cls.TOOLS_TRANSFORM,
-            cls.TOOLS_UTILITIES,
-            cls.TOOLS_VISUALIZATION,
+            cls.MENUBAR_ACQUISITION,
+            cls.MENUBAR_LAYERS,
+            cls.LAYERS_VISUALIZE,
+            cls.LAYERS_EDIT,
+            cls.LAYERS_EDIT_ANNOTATE,
+            cls.LAYERS_EDIT_FILTER,
+            cls.LAYERS_EDIT_TRANSFORM,
+            cls.LAYERS_MEASURE,
+            cls.LAYERS_GENERATE,
+            cls.LAYERS_GENERATE_REGISTRATION,
+            cls.LAYERS_GENERATE_PROJECTION,
+            cls.LAYERS_GENERATE_SEGMENTATION,
+            cls.LAYERS_GENERATE_TRACKS,
+            cls.LAYERS_GENERATE_CLASSIFICATION
         }
         return _contributables
 
@@ -96,40 +120,65 @@ class MenuId(str, Enum):
                     'title': trans._('Scale Bar'),
                 },
             ],
-            MenuId.MENUBAR_TOOLS: [
+            MenuId.MENUBAR_LAYERS: [
                 {
-                    'submenu': MenuId.TOOLS_ACQUISITION,
-                    'title': trans._('Acquisition'),
-                },
-                {'submenu': MenuId.TOOLS_FILTERS, 'title': trans._('Filters')},
-                {
-                    'submenu': MenuId.TOOLS_TRANSFORM,
-                    'title': trans._('Transform'),
+                    'submenu': MenuId.LAYERS_VISUALIZE,
+                    'title': trans._('Visualize'),
                 },
                 {
-                    'submenu': MenuId.TOOLS_MEASUREMENT,
-                    'title': trans._('Measurement'),
+                    'submenu': MenuId.LAYERS_EDIT, 
+                    'title': trans._('Edit')
                 },
                 {
-                    'submenu': MenuId.TOOLS_CLASSIFICATION,
-                    'title': trans._('Classification'),
+                    'submenu': MenuId.LAYERS_MEASURE,
+                    'title': trans._('Measure'),
                 },
                 {
-                    'submenu': MenuId.TOOLS_PROJECTION,
-                    'title': trans._('Projection'),
+                    'submenu': MenuId.LAYERS_GENERATE,
+                    'title': trans._('Generate'),
+                },
+            ],
+            MenuId.LAYERS_EDIT: [
+                {
+                    'submenu': MenuId.LAYERS_EDIT_ANNOTATE, 
+                    'title': trans._('Annotate')
                 },
                 {
-                    'submenu': MenuId.TOOLS_SEGMENTATION,
-                    'title': trans._('Segmentation'),
+                    'submenu': MenuId.LAYERS_EDIT_FILTER, 
+                    'title': trans._('Filter')
                 },
                 {
-                    'submenu': MenuId.TOOLS_VISUALIZATION,
-                    'title': trans._('Visualization'),
+                    'submenu': MenuId.LAYERS_EDIT_TRANSFORM, 
+                    'title': trans._('Transform')
+                },
+            ],
+            MenuId.LAYERS_GENERATE: [
+                {
+                    'submenu': MenuId.LAYERS_GENERATE_REGISTRATION, 
+                    'title': trans._('Registration')
                 },
                 {
-                    'submenu': MenuId.TOOLS_UTILITIES,
-                    'title': trans._('Utilities'),
+                    'submenu': MenuId.LAYERS_GENERATE_PROJECTION, 
+                    'title': trans._('Projection')
                 },
+                {
+                    'submenu': MenuId.LAYERS_GENERATE_SEGMENTATION, 
+                    'title': trans._('Segmentation')
+                },
+                {
+                    'submenu': MenuId.LAYERS_GENERATE_TRACKS, 
+                    'title': trans._('Tracks')
+                },
+                {
+                    'submenu': MenuId.LAYERS_GENERATE_CLASSIFICATION, 
+                    'title': trans._('Classification')
+                },
+            ],
+            MenuId.MENUBAR_ACQUISITION: [
+                {
+                    'submenu': MenuId.LAYERS_EDIT,
+                    'title': trans._('Placeholder'),
+                }
             ],
         }
 

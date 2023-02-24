@@ -646,14 +646,20 @@ class Window:
         self.main_menu.addMenu(self.view_menu)
         self.window_menu = menus.WindowMenu(self)
         self.main_menu.addMenu(self.window_menu)
-        self.plugins_menu = menus.PluginsMenu(self)
-        self.main_menu.addMenu(self.plugins_menu)
-        self.tools_menu = build_qmodel_menu(
-            MenuId.MENUBAR_TOOLS,
-            title=trans._('&Tools'),
+        self.layers_menu = build_qmodel_menu(
+            MenuId.MENUBAR_LAYERS,
+            title=trans._('&Layers'),
             parent=self._qt_window,
         )
-        self.main_menu.addMenu(self.tools_menu)
+        self.main_menu.addMenu(self.layers_menu)
+        self.acquisition_menu = build_qmodel_menu(
+            MenuId.MENUBAR_ACQUISITION,
+            title=trans._('&Acquisition'),
+            parent=self._qt_window,
+        )
+        self.main_menu.addMenu(self.acquisition_menu)
+        self.plugins_menu = menus.PluginsMenu(self)
+        self.main_menu.addMenu(self.plugins_menu)
         self.help_menu = build_qmodel_menu(
             MenuId.MENUBAR_HELP, title=trans._('&Help'), parent=self._qt_window
         )
