@@ -38,12 +38,12 @@ class MenuId(str, Enum):
 
     LAYERS_MEASURE = 'napari/layers/measure'
 
-    LAYERS_GENERATE = 'napari/layers/generate'
-    LAYERS_GENERATE_REGISTRATION = 'napari/layers/generate/registration'
-    LAYERS_GENERATE_PROJECTION = 'napari/layers/generate/projection'
-    LAYERS_GENERATE_SEGMENTATION = 'napari/layers/generate/segmentation'
-    LAYERS_GENERATE_TRACKS = 'napari/layers/generate/tracks'
-    LAYERS_GENERATE_CLASSIFICATION = 'napari/layers/generate/classification'
+    # LAYERS_GENERATE = 'napari/layers/generate'
+    LAYERS_REGISTRATION = 'napari/layers/registration'
+    LAYERS_PROJECTION = 'napari/layers/projection'
+    LAYERS_SEGMENTATION = 'napari/layers/segmentation'
+    LAYERS_TRACKS = 'napari/layers/tracks'
+    LAYERS_CLASSIFICATION = 'napari/layers/classification'
 
     # TOOLS_CLASSIFICATION = 'napari/tools/classification'
     # TOOLS_FILTERS = 'napari/tools/filters'
@@ -82,12 +82,11 @@ class MenuId(str, Enum):
             cls.LAYERS_EDIT_FILTER,
             cls.LAYERS_EDIT_TRANSFORM,
             cls.LAYERS_MEASURE,
-            cls.LAYERS_GENERATE,
-            cls.LAYERS_GENERATE_REGISTRATION,
-            cls.LAYERS_GENERATE_PROJECTION,
-            cls.LAYERS_GENERATE_SEGMENTATION,
-            cls.LAYERS_GENERATE_TRACKS,
-            cls.LAYERS_GENERATE_CLASSIFICATION
+            cls.LAYERS_REGISTRATION,
+            cls.LAYERS_PROJECTION,
+            cls.LAYERS_SEGMENTATION,
+            cls.LAYERS_TRACKS,
+            cls.LAYERS_CLASSIFICATION
         }
         return _contributables
 
@@ -134,8 +133,29 @@ class MenuId(str, Enum):
                     'title': trans._('Measure'),
                 },
                 {
-                    'submenu': MenuId.LAYERS_GENERATE,
-                    'title': trans._('Generate'),
+                    'submenu': MenuId.LAYERS_REGISTRATION, 
+                    'title': trans._('Registration'),
+                    'group': MenuGroup.LAYERS.GENERATE
+                },
+                {
+                    'submenu': MenuId.LAYERS_PROJECTION, 
+                    'title': trans._('Projection'),
+                    'group': MenuGroup.LAYERS.GENERATE
+                },
+                {
+                    'submenu': MenuId.LAYERS_SEGMENTATION, 
+                    'title': trans._('Segmentation'),
+                    'group': MenuGroup.LAYERS.GENERATE
+                },
+                {
+                    'submenu': MenuId.LAYERS_TRACKS, 
+                    'title': trans._('Tracks'),
+                    'group': MenuGroup.LAYERS.GENERATE
+                },
+                {
+                    'submenu': MenuId.LAYERS_CLASSIFICATION, 
+                    'title': trans._('Classification'),
+                    'group': MenuGroup.LAYERS.GENERATE
                 },
             ],
             MenuId.LAYERS_EDIT: [
@@ -150,28 +170,6 @@ class MenuId(str, Enum):
                 {
                     'submenu': MenuId.LAYERS_EDIT_TRANSFORM, 
                     'title': trans._('Transform')
-                },
-            ],
-            MenuId.LAYERS_GENERATE: [
-                {
-                    'submenu': MenuId.LAYERS_GENERATE_REGISTRATION, 
-                    'title': trans._('Registration')
-                },
-                {
-                    'submenu': MenuId.LAYERS_GENERATE_PROJECTION, 
-                    'title': trans._('Projection')
-                },
-                {
-                    'submenu': MenuId.LAYERS_GENERATE_SEGMENTATION, 
-                    'title': trans._('Segmentation')
-                },
-                {
-                    'submenu': MenuId.LAYERS_GENERATE_TRACKS, 
-                    'title': trans._('Tracks')
-                },
-                {
-                    'submenu': MenuId.LAYERS_GENERATE_CLASSIFICATION, 
-                    'title': trans._('Classification')
                 },
             ],
             MenuId.MENUBAR_ACQUISITION: [
@@ -198,7 +196,11 @@ class MenuGroup:
         CONVERSION = '1_conversion'
         SPLIT_MERGE = '5_split_merge'
         LINK = '9_link'
-
+        
+    class LAYERS:
+        NEW = '1_new'
+        GENERATE = '2_generate'
+        PLUGINS = '9_plugins'
 
 def is_menu_contributable(menu_id: str) -> bool:
     """Return True if the given menu_id is a menu that plugins can contribute to."""

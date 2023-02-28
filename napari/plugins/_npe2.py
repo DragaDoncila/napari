@@ -351,7 +351,7 @@ def _npe2_manifest_to_actions(
     """Gather actions and submenus from a npe2 manifest, export app_model types."""
     from app_model.types import Action, MenuRule
 
-    from .._app_model.constants._menus import is_menu_contributable
+    from .._app_model.constants._menus import is_menu_contributable, MenuGroup
 
     cmds: DefaultDict[str, List[MenuRule]] = DefaultDict(list)
     submenus: List[Tuple[str, SubmenuItem]] = []
@@ -359,7 +359,11 @@ def _npe2_manifest_to_actions(
         if is_menu_contributable(menu_id):
             for item in items:
                 if isinstance(item, contributions.MenuCommand):
-                    rule = MenuRule(id=menu_id, **_when_group_order(item))
+                    # give order to general items
+                    when_group_order = _when_group_order(item)
+                    if menu_id == 'napari/layers':
+                        when_group_order['group'] = MenuGroup.LAYERS.PLUGINS
+                    rule = MenuRule(id=menu_id, **when_group_order)
                     cmds[item.command].append(rule)
                 else:
                     subitem = _npe2_submenu_to_app_model(item)
@@ -382,7 +386,7 @@ def _npe2_manifest_to_actions(
             tooltip=cmd.short_title or cmd.title,
             icon=cmd.icon,
             enablement=cmd.enablement,
-            callback=cmd.python_name or '',
+            callback=cmd.python_name or '', # modify this with correct dispatch mechanism
             menus=cmds.get(cmd.id),
             keybindings=[],
         )
