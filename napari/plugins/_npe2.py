@@ -378,6 +378,15 @@ def _npe2_manifest_to_actions(
                 stacklevel=2,
             )
 
+    def get_callback(cmd):
+        callback = cmd.python_name or ''
+        for contrib in mf.contributions.widgets or ():
+            if contrib.command == cmd.id:
+                callback = contrib.get_callable()
+                print(callback)
+                break
+        return callback
+
     actions: List[Action] = [
         Action(
             id=cmd.id,
@@ -386,7 +395,8 @@ def _npe2_manifest_to_actions(
             tooltip=cmd.short_title or cmd.title,
             icon=cmd.icon,
             enablement=cmd.enablement,
-            callback=cmd.python_name or '', # modify this with correct dispatch mechanism
+            # callback=cmd.python_name or '', # modify this with correct dispatch mechanism
+            callback= get_callback(cmd),
             menus=cmds.get(cmd.id),
             keybindings=[],
         )
