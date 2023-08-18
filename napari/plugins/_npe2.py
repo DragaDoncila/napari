@@ -383,7 +383,6 @@ def _npe2_manifest_to_actions(
         for contrib in mf.contributions.widgets or ():
             if contrib.command == cmd.id:
                 callback = contrib.get_callable()
-                print(callback)
                 break
         return callback
 
@@ -395,8 +394,8 @@ def _npe2_manifest_to_actions(
             tooltip=cmd.short_title or cmd.title,
             icon=cmd.icon,
             enablement=cmd.enablement,
-            # callback=cmd.python_name or '', # modify this with correct dispatch mechanism
-            callback= get_callback(cmd),
+            callback=cmd.python_name or '', # modify this with correct dispatch mechanism
+            # callback= get_callback(cmd),
             menus=cmds.get(cmd.id),
             keybindings=[],
         )
