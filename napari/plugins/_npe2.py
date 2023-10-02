@@ -1,25 +1,33 @@
 from __future__ import annotations
 
 import warnings
+import inspect
 from collections import defaultdict
 from typing import (
     TYPE_CHECKING,
     Any,
+    Callable,
     DefaultDict,
     Dict,
     Iterator,
     List,
+    NamedTuple,
     Optional,
     Sequence,
     Set,
     Tuple,
+    Type,
+    Union,
     cast,
 )
 
 from app_model import Action
-from app_model.types import SubmenuItem
+from app_model.types import SubmenuItem, ToggleRule
+from magicgui.type_map._magicgui import MagicFactory
+from magicgui.widgets import FunctionGui, Widget
 from npe2 import io_utils, plugin_manager as pm
 from npe2.manifest import contributions
+from qtpy.QtWidgets import QWidget  # type: ignore [attr-defined]
 
 from napari.errors.reader_errors import MultipleReaderError
 from napari.utils.translations import trans
@@ -32,6 +40,7 @@ if TYPE_CHECKING:
     from npe2.types import LayerData, SampleDataCreator, WidgetCreator
     from qtpy.QtWidgets import QMenu  # type: ignore [attr-defined]
 
+    from napari._app_model.constants import MenuId
     from napari.layers import Layer
     from napari.types import SampleDict
 
@@ -315,7 +324,6 @@ def on_plugin_enablement_change(enabled: Set[str], disabled: Set[str]):
     'Disabled' means the plugin remains installed, but it cannot be activated,
     and its contributions will not be indexed
     """
-    from napari import Viewer
     from napari.settings import get_settings
 
     plugin_settings = get_settings().plugins
@@ -330,13 +338,6 @@ def on_plugin_enablement_change(enabled: Set[str], disabled: Set[str]):
         # actually a registered plugin.
         if plugin_name in pm.instance():
             _register_manifest_actions(pm.get_manifest(plugin_name))
-
-    # TODO: after app-model, these QMenus will be evented and self-updating
-    # and we can remove this... but `_register_manifest_actions` will need to
-    # add the actions file and plugins menus (since we don't require plugins to
-    # list them explicitly)
-    for v in Viewer._instances:
-        v.window.plugins_menu._build()
 
 
 def on_plugins_registered(manifests: Set[PluginManifest]):
@@ -422,6 +423,31 @@ def _rebuild_npe1_samples_menu() -> None:
         plugin_manager._unreg_sample_actions = unreg_sample_actions
 
 
+def _get_multiprovider_submenu(
+    multiprovider: bool,
+    parent_menu: MenuId,
+    mf: PluginManifest,
+    group: Optional[str] = None,
+) -> Tuple[str, List[Any]]:
+    """Get sample/widget multiprovider plugin submenu id and `SubmenuItem`."""
+    submenu: List[Tuple[str, SubmenuItem]] = []
+    if multiprovider:
+        submenu_id = f'{parent_menu}/{mf.name}'
+        submenu = [
+            (
+                parent_menu,
+                SubmenuItem(
+                    submenu=submenu_id,
+                    title=trans._(mf.display_name),
+                    group=group,
+                ),
+            ),
+        ]
+    else:
+        submenu_id = parent_menu
+    return submenu_id, submenu
+
+
 def _get_samples_submenu_actions(
     mf: PluginManifest,
 ) -> Tuple[List[Any], List[Any]]:
@@ -438,19 +464,11 @@ def _get_samples_submenu_actions(
 
     sample_data = mf.contributions.sample_data
     multiprovider = len(sample_data) > 1
-    if multiprovider:
-        submenu_id = f'napari/file/samples/{mf.name}'
-        submenu = [
-            (
-                MenuId.FILE_SAMPLES,
-                SubmenuItem(
-                    submenu=submenu_id, title=trans._(mf.display_name)
-                ),
-            ),
-        ]
-    else:
-        submenu_id = MenuId.FILE_SAMPLES
-        submenu = []
+    submenu_id, submenu = _get_multiprovider_submenu(
+        multiprovider,
+        MenuId.FILE_SAMPLES,
+        mf,
+    )
 
     sample_actions: List[Action] = []
     for sample in sample_data:
@@ -490,6 +508,130 @@ def _get_samples_submenu_actions(
     return submenu, sample_actions
 
 
+def _get_widgets_submenu_actions(
+    mf: PluginManifest,
+) -> Tuple[List[Any], List[Any]]:
+    """Get widget submenu and actions for a single npe2 plugin manifest."""
+    from napari._app_model.constants import MenuGroup, MenuId
+    from napari.plugins import _npe2, menu_item_template
+    from napari.viewer import Viewer
+
+    if TYPE_CHECKING:
+        from napari._qt.qt_main_window import Window
+
+    # If no widgets, return
+    if not mf.contributions.widgets:
+        return [], []
+
+    widgets = mf.contributions.widgets
+    multiprovider = len(widgets) > 1
+    submenu_id, submenu = _get_multiprovider_submenu(
+        multiprovider,
+        MenuId.MENUBAR_PLUGINS,
+        mf,
+        MenuGroup.PLUGIN_CONTRIBUTIONS,
+    )
+
+    widget_actions: List[Action] = []
+    for widget in widgets:
+        full_name = menu_item_template.format(
+            mf.display_name, widget.display_name
+        )
+        if widget_contribution := _npe2.get_widget_contribution(
+            mf.name,
+            widget.display_name,
+        ):
+            widget_callable, widget_name = widget_contribution
+
+            if inspect.isclass(widget_callable) and issubclass(
+                widget_callable,
+                (QWidget, Widget),
+            ):
+                widget_param = ""
+                # Inspection can fail when adding to bundle as it thinks widget is
+                # a builtin
+                try:
+                    sig = inspect.signature(widget_callable.__init__)
+                except ValueError:
+                    pass
+                else:
+                    for param in sig.parameters.values():
+                        if param.name == 'napari_viewer':
+                            widget_param = param.name
+                            break
+                        if param.annotation in (
+                            'napari.viewer.Viewer',
+                            Viewer,
+                        ):
+                            widget_param = param.name
+                            break
+
+            elif isinstance(widget_callable, MagicFactory) or callable(
+                widget_callable
+            ):
+                widget_param = ""
+            else:
+                raise TypeError(
+                    trans._(
+                        "Widgets must be `QtWidgets.QWidget` or `magicgui.widgets.Widget` subclass, `MagicFactory` instance or callable, but {widget} is of type {type_}. Please raise an issue in napari GitHub with the plugin and widget you were trying to use.",
+                        deferred=True,
+                        widget=widget_name,
+                        type_=type(widget_callable),
+                    )
+                )
+
+            # Toggle if widget already built otherwise return widget so it can be
+            # added to main window by a processor
+            def _widget_callback(
+                napari_viewer: Viewer,
+                widget: Union[MagicFactory, Type, Callable] = widget_callable,
+                name: str = full_name,
+                param: str = widget_param,
+            ) -> Optional[Tuple[Union[FunctionGui, QWidget, Widget], str]]:
+                window = napari_viewer.window
+                if name in window._dock_widgets:
+                    dock_widget = window._dock_widgets[name]
+                    if dock_widget.isVisible():
+                        dock_widget.hide()
+                    else:
+                        dock_widget.show()
+                    return None
+
+                kwargs = {}
+                if param:
+                    kwargs[param] = napari_viewer
+                return widget(**kwargs), name
+
+            def _get_current_dock_status(
+                window: Window,
+                name: str = full_name,
+            ):
+                if name in window._dock_widgets:
+                    return window._dock_widgets[name].isVisible()
+                return False
+
+            title = full_name
+            if multiprovider:
+                title = widget.display_name
+            # To display '&' instead of creating a shortcut
+            title = title.replace("&", "&&")
+
+            widget_actions.append(
+                Action(
+                    id=f'{mf.name}:{widget_name}',
+                    title=title,
+                    callback=_widget_callback,
+                    menus=[
+                        {
+                            'id': submenu_id,
+                        }
+                    ],
+                    toggled=ToggleRule(get_current=_get_current_dock_status),
+                )
+            )
+    return submenu, widget_actions
+
+
 def _register_manifest_actions(mf: PluginManifest) -> None:
     """Gather and register actions from a manifest.
 
@@ -497,22 +639,38 @@ def _register_manifest_actions(mf: PluginManifest) -> None:
     plugin's menus and submenus to the app model registry.
     """
     from napari._app_model import get_app
+    from napari._qt.qt_main_window import _QtMainWindow
 
     app = get_app()
     actions, submenus = _npe2_manifest_to_actions(mf)
     samples_submenu, sample_actions = _get_samples_submenu_actions(mf)
+    widgets_submenu, widget_actions = _get_widgets_submenu_actions(mf)
     context = pm.get_context(cast('PluginName', mf.name))
-    # Connect 'unregister' callback to plugin deactivate ('unregistered') event
+
+    # Register and connect dispose callback to plugin deactivate ('unregistered') event
+    actions = actions + sample_actions + widget_actions
     if actions:
         context.register_disposable(app.register_actions(actions))
+    submenus = submenus + samples_submenu + widgets_submenu
     if submenus:
         context.register_disposable(app.menus.append_menu_items(submenus))
-    if samples_submenu:
-        context.register_disposable(
-            app.menus.append_menu_items(samples_submenu)
-        )
-    if sample_actions:
-        context.register_disposable(app.register_actions(sample_actions))
+
+    # Register dispose functions that remove plugin widgets from widget dictionary
+    # `window._dock_widgets`
+    _qmainwin = _QtMainWindow.current()
+    if _qmainwin:
+        window = _qmainwin._window
+
+        class Event(NamedTuple):
+            value: str
+
+        for widget in mf.contributions.widgets or ():
+            widget_event = Event(widget.display_name)
+
+            def _remove_widget(event=widget_event):
+                window._remove_dock_widget(event)
+
+            context.register_disposable(_remove_widget)
 
 
 def _npe2_manifest_to_actions(
@@ -523,18 +681,20 @@ def _npe2_manifest_to_actions(
 
     from napari._app_model.constants._menus import is_menu_contributable
 
-    cmds: DefaultDict[str, List[MenuRule]] = DefaultDict(list)
+    menu_cmds: DefaultDict[str, List[MenuRule]] = DefaultDict(list)
     submenus: List[Tuple[str, SubmenuItem]] = []
     for menu_id, items in mf.contributions.menus.items():
         if is_menu_contributable(menu_id):
             for item in items:
                 if isinstance(item, contributions.MenuCommand):
                     # give order to general items
-                    when_group_order = _when_group_order(item)
-                    if menu_id == 'napari/layers':
-                        when_group_order['group'] = MenuGroup.LAYERS.PLUGINS
-                    rule = MenuRule(id=menu_id, **when_group_order)
-                    cmds[item.command].append(rule)
+                    # when_group_order = _when_group_order(item)
+                    # if menu_id == 'napari/layers':
+                    #     when_group_order['group'] = MenuGroup.LAYERS.PLUGINS
+                    # rule = MenuRule(id=menu_id, **when_group_order)
+                    # cmds[item.command].append(rule)
+                    rule = MenuRule(id=menu_id, **_when_group_order(item))
+                    menu_cmds[item.command].append(rule)
                 else:
                     subitem = _npe2_submenu_to_app_model(item)
                     submenus.append((menu_id, subitem))
@@ -558,15 +718,18 @@ def _npe2_manifest_to_actions(
 
     # Filter sample data commands (not URIs) as they are registered via
     # `_get_samples_submenu_actions`
-    sample_data_commands = {
+    sample_data_ids = {
         contrib.command
         for contrib in mf.contributions.sample_data or ()
         if hasattr(contrib, 'command')
     }
+    # Filter widgets as are registered in `_get_widgets_submenu_actions`
+    widget_ids = {widget.command for widget in mf.contributions.widgets or ()}
 
+    # We want to register all `Actions` so they appear in the command pallete
     actions: List[Action] = []
     for cmd in mf.contributions.commands or ():
-        if cmd.id not in sample_data_commands:
+        if cmd.id not in sample_data_ids | widget_ids:
             actions.append(
                 Action(
                     id=cmd.id,
@@ -576,7 +739,7 @@ def _npe2_manifest_to_actions(
                     icon=cmd.icon,
                     enablement=cmd.enablement,
                     callback=cmd.python_name or '',
-                    menus=cmds.get(cmd.id),
+                    menus=menu_cmds.get(cmd.id),
                     keybindings=[],
                 )
             )

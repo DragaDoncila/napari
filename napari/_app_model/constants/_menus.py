@@ -31,6 +31,8 @@ class MenuId(StrEnum):
     VIEW_AXES = 'napari/view/axes'
     VIEW_SCALEBAR = 'napari/view/scalebar'
 
+    MENUBAR_PLUGINS = 'napari/plugins'
+
     MENUBAR_HELP = 'napari/help'
 
     MENUBAR_LAYERS = 'napari/layers'
@@ -196,6 +198,9 @@ class MenuId(StrEnum):
 class MenuGroup:
     NAVIGATION = 'navigation'  # always the first group in any menu
     RENDER = '1_render'
+    PLUGINS = '1_plugins'
+    PLUGIN_CONTRIBUTIONS = '2_plugin_contributions'
+    # File menubar
     PREFERENCES = '2_preferences'
     SAVE = '3_save'
     CLOSE = '4_close'
@@ -209,6 +214,7 @@ class MenuGroup:
         NEW = '1_new'
         GENERATE = '2_generate'
         PLUGINS = '9_plugins'
+
 
 def is_menu_contributable(menu_id: str) -> bool:
     """Return True if the given menu_id is a menu that plugins can contribute to."""
