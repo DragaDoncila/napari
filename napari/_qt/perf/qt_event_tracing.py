@@ -9,8 +9,8 @@ dockable QtPerformance widget.
 from qtpy.QtCore import QEvent
 from qtpy.QtWidgets import QApplication, QWidget
 
-from ...utils import perf
-from ...utils.translations import trans
+from napari.utils import perf
+from napari.utils.translations import trans
 
 
 class QApplicationWithTracing(QApplication):
@@ -53,7 +53,7 @@ class EventTypes:
     We use this class for PyQt5 and PySide2 to be consistent.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Create mapping for all known event types."""
         self.string_name = {}
         for name in vars(QEvent):
@@ -107,6 +107,14 @@ def _get_event_label(receiver: QWidget, event: QEvent) -> str:
     except AttributeError:
         # Ignore "missing objectName attribute" during shutdown.
         object_name = None
+
+    if not object_name:
+        # use class for object without set name.
+        try:
+            object_name = str(receiver.__class__.__name__)
+        except AttributeError:
+            # do not crash in using some strange class.
+            object_name = None
 
     if object_name:
         return f"{event_str}:{object_name}"

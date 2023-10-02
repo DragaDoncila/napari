@@ -8,21 +8,39 @@ documentation.
 CommandId values should be namespaced, e.g. 'napari:layer:something' for a command
 that operates on layers.
 """
-from enum import Enum
 from typing import NamedTuple, Optional
 
-from ...utils.translations import trans
+from napari.utils.compat import StrEnum
+from napari.utils.translations import trans
 
 
 # fmt: off
-class CommandId(str, Enum):
+class CommandId(StrEnum):
     """Id representing a napari command."""
+    # File menubar
+    DLG_OPEN_FILES = 'napari:window:file:open_files_dialog'
+    DLG_OPEN_FILES_AS_STACK = 'napari:window:file:open_files_as_stack_dialog'
+    DLG_OPEN_FOLDER = 'napari:window:file:open_folder_dialog'
+    DLG_OPEN_FILES_WITH_PLUGIN = 'napari:window:file:_open_files_with_plugin'
+    DLG_OPEN_FILES_AS_STACK_WITH_PLUGIN = 'napari:window:file:_open_files_as_stack_with_plugin'
+    DLG_OPEN_FOLDER_WITH_PLUGIN = 'napari:window:file:_open_folder_with_plugin'
+    DLG_SHOW_PREFERENCES = 'napari:window:file:show_preferences_dialog'
+    DLG_SAVE_LAYERS = 'napari:window:file:save_layers_dialog'
+    # `DLG_SAVE_SELECTED_LAYERS` uses the same callback as `DLG_SAVE_LAYERS`,
+    # just with different kwarg
+    DLG_SAVE_SELECTED_LAYERS = 'napari:window:file:save_layers_dialog:selected'
+    DLG_SAVE_CANVAS_SCREENSHOT = 'napari:window:file:save_canvas_screenshot_dialog'
+    DLG_SAVE_VIEWER_SCREENSHOT = 'napari:window:file:save_viewer_screenshot_dialog'
+    COPY_CANVAS_SCREENSHOT = 'napari:window:file:copy_canvas_screenshot'
+    COPY_VIEWER_SCREENSHOT = 'napari:window:file:copy_viewer_screenshot'
+    DLG_CLOSE = 'napari:window:file:close_dialog'
+    DLG_QUIT = 'napari:window:file:quit_dialog'
+    RESTART = 'napari:window:file:restart'
 
     # View menubar
     TOGGLE_FULLSCREEN = 'napari:window:view:toggle_fullscreen'
     TOGGLE_MENUBAR = 'napari:window:view:toggle_menubar'
     TOGGLE_PLAY = 'napari:window:view:toggle_play'
-    TOGGLE_OCTREE_CHUNK_OUTLINES = 'napari:window:view:toggle_octree_chunk_outlines'
     TOGGLE_LAYER_TOOLTIPS = 'napari:window:view:toggle_layer_tooltips'
     TOGGLE_ACTIVITY_DOCK = 'napari:window:view:toggle_activity_dock'
 
@@ -36,7 +54,14 @@ class CommandId(str, Enum):
     TOGGLE_VIEWER_SCALE_BAR_TICKS = 'napari:window:view:toggle_viewer_scale_bar_ticks'
 
     # Help menubar
+    NAPARI_GETTING_STARTED = 'napari:window:help:getting_started'
+    NAPARI_TUTORIALS = 'napari:window:help:tutorials'
+    NAPARI_LAYERS_GUIDE = 'napari:window:help:layers_guide'
+    NAPARI_EXAMPLES = 'napari:window:help:examples'
+    NAPARI_RELEASE_NOTES = 'napari:window:help:release_notes'
+    NAPARI_HOMEPAGE = 'napari:window:help:homepage'
     NAPARI_INFO = 'napari:window:help:info'
+    NAPARI_GITHUB_ISSUE = 'napari:window:help:github_issue'
     TOGGLE_BUG_REPORT_OPT_IN = 'napari:window:help:bug_report_opt_in'
 
     # Layer menubar
@@ -70,7 +95,7 @@ class CommandId(str, Enum):
     LAYER_PROJECT_MEDIAN = 'napari:layer:project_median'
 
     @property
-    def title(self) -> str:
+    def command_title(self) -> str:
         return _COMMAND_INFO[self].title
 
     @property
@@ -86,13 +111,30 @@ class _i(NamedTuple):
 
 
 _COMMAND_INFO = {
+    # File menubar
+    CommandId.DLG_OPEN_FILES: _i(trans._('Open File(s)...')),
+    CommandId.DLG_OPEN_FILES_AS_STACK: _i(trans._('Open Files as Stack...')),
+    CommandId.DLG_OPEN_FOLDER: _i(trans._('Open Folder...')),
+    CommandId.DLG_OPEN_FILES_WITH_PLUGIN: _i(trans._('Open File(s)...')),
+    CommandId.DLG_OPEN_FILES_AS_STACK_WITH_PLUGIN: _i(trans._('Open Files as Stack...')),
+    CommandId.DLG_OPEN_FOLDER_WITH_PLUGIN: _i(trans._('Open Folder...')),
+    CommandId.DLG_SHOW_PREFERENCES: _i(trans._('Preferences')),
+    CommandId.DLG_SAVE_LAYERS: _i(trans._('Save All Layers...')),
+    CommandId.DLG_SAVE_SELECTED_LAYERS: _i(trans._('Save Selected Layers...')),
+    CommandId.DLG_SAVE_CANVAS_SCREENSHOT: _i(trans._('Save Screenshot...')),
+    CommandId.DLG_SAVE_VIEWER_SCREENSHOT: _i(trans._('Save Screenshot with Viewer...')),
+    CommandId.COPY_CANVAS_SCREENSHOT: _i(trans._('Copy Screenshot to Clipboard')),
+    CommandId.COPY_VIEWER_SCREENSHOT: _i(trans._('Copy Screenshot with Viewer to Clipboard')),
+    CommandId.DLG_CLOSE: _i(trans._('Close Window')),
+    CommandId.DLG_QUIT: _i(trans._('Exit')),
+    CommandId.RESTART: _i(trans._('Restart')),
+
     # View menubar
-    CommandId.TOGGLE_FULLSCREEN: _i(trans._('Toggle Full Screen'),),
-    CommandId.TOGGLE_MENUBAR: _i(trans._('Toggle Menubar Visibility'),),
-    CommandId.TOGGLE_PLAY: _i(trans._('Toggle Play'),),
-    CommandId.TOGGLE_OCTREE_CHUNK_OUTLINES: _i(trans._('Toggle Chunk Outlines'),),
-    CommandId.TOGGLE_LAYER_TOOLTIPS: _i(trans._('Toggle Layer Tooltips'),),
-    CommandId.TOGGLE_ACTIVITY_DOCK: _i(trans._('Toggle Activity Dock'),),
+    CommandId.TOGGLE_FULLSCREEN: _i(trans._('Toggle Full Screen')),
+    CommandId.TOGGLE_MENUBAR: _i(trans._('Toggle Menubar Visibility')),
+    CommandId.TOGGLE_PLAY: _i(trans._('Toggle Play')),
+    CommandId.TOGGLE_LAYER_TOOLTIPS: _i(trans._('Toggle Layer Tooltips')),
+    CommandId.TOGGLE_ACTIVITY_DOCK: _i(trans._('Toggle Activity Dock')),
     CommandId.TOGGLE_VIEWER_AXES: _i(trans._('Axes Visible')),
     CommandId.TOGGLE_VIEWER_AXES_COLORED: _i(trans._('Axes Colored')),
     CommandId.TOGGLE_VIEWER_AXES_LABELS: _i(trans._('Axes Labels')),
@@ -103,33 +145,40 @@ _COMMAND_INFO = {
     CommandId.TOGGLE_VIEWER_SCALE_BAR_TICKS: _i(trans._('Scale Bar Ticks')),
 
     # Help menubar
-    CommandId.NAPARI_INFO: _i(trans._('napari Info'), ),
-    CommandId.TOGGLE_BUG_REPORT_OPT_IN: _i(trans._('Bug Reporting Opt In/Out...'), ),
+    CommandId.NAPARI_GETTING_STARTED: _i(trans._('Getting started')),
+    CommandId.NAPARI_TUTORIALS: _i(trans._('Tutorials')),
+    CommandId.NAPARI_LAYERS_GUIDE: _i(trans._('Using Layers Guides')),
+    CommandId.NAPARI_EXAMPLES: _i(trans._('Examples Gallery')),
+    CommandId.NAPARI_RELEASE_NOTES: _i(trans._('Release Notes')),
+    CommandId.NAPARI_HOMEPAGE: _i(trans._('napari homepage')),
+    CommandId.NAPARI_INFO: _i(trans._('napari Info')),
+    CommandId.NAPARI_GITHUB_ISSUE: _i(trans._('Report an issue on GitHub')),
+    CommandId.TOGGLE_BUG_REPORT_OPT_IN: _i(trans._('Bug Reporting Opt In/Out...')),
 
     # Layer menubar
-    CommandId.LAYER_DUPLICATE: _i(trans._('Duplicate Layer'),),
-    CommandId.LAYER_SPLIT_STACK: _i(trans._('Split Stack'),),
-    CommandId.LAYER_SPLIT_RGB: _i(trans._('Split RGB'),),
-    CommandId.LAYER_MERGE_STACK: _i(trans._('Merge to Stack'),),
-    CommandId.LAYER_TOGGLE_VISIBILITY: _i(trans._('Toggle visibility'),),
-    CommandId.LAYER_LINK_SELECTED: _i(trans._('Link Layers'),),
-    CommandId.LAYER_UNLINK_SELECTED: _i(trans._('Unlink Layers'),),
-    CommandId.LAYER_SELECT_LINKED: _i(trans._('Select Linked Layers'),),
-    CommandId.LAYER_CONVERT_TO_LABELS: _i(trans._('Convert to Labels'),),
-    CommandId.LAYER_CONVERT_TO_IMAGE: _i(trans._('Convert to Image'),),
-    CommandId.LAYER_CONVERT_TO_INT8: _i(trans._('Convert to int8'),),
-    CommandId.LAYER_CONVERT_TO_INT16: _i(trans._('Convert to int16'),),
-    CommandId.LAYER_CONVERT_TO_INT32: _i(trans._('Convert to int32'),),
-    CommandId.LAYER_CONVERT_TO_INT64: _i(trans._('Convert to int64'),),
-    CommandId.LAYER_CONVERT_TO_UINT8: _i(trans._('Convert to uint8'),),
-    CommandId.LAYER_CONVERT_TO_UINT16: _i(trans._('Convert to uint16'),),
-    CommandId.LAYER_CONVERT_TO_UINT32: _i(trans._('Convert to uint32'),),
-    CommandId.LAYER_CONVERT_TO_UINT64: _i(trans._('Convert to uint64'),),
-    CommandId.LAYER_PROJECT_MAX: _i(trans._('Max projection'),),
-    CommandId.LAYER_PROJECT_MIN: _i(trans._('Min projection'),),
-    CommandId.LAYER_PROJECT_STD: _i(trans._('Std projection'),),
-    CommandId.LAYER_PROJECT_SUM: _i(trans._('Sum projection'),),
-    CommandId.LAYER_PROJECT_MEAN: _i(trans._('Mean projection'),),
-    CommandId.LAYER_PROJECT_MEDIAN: _i(trans._('Median projection'),),
+    CommandId.LAYER_DUPLICATE: _i(trans._('Duplicate Layer')),
+    CommandId.LAYER_SPLIT_STACK: _i(trans._('Split Stack')),
+    CommandId.LAYER_SPLIT_RGB: _i(trans._('Split RGB')),
+    CommandId.LAYER_MERGE_STACK: _i(trans._('Merge to Stack')),
+    CommandId.LAYER_TOGGLE_VISIBILITY: _i(trans._('Toggle visibility')),
+    CommandId.LAYER_LINK_SELECTED: _i(trans._('Link Layers')),
+    CommandId.LAYER_UNLINK_SELECTED: _i(trans._('Unlink Layers')),
+    CommandId.LAYER_SELECT_LINKED: _i(trans._('Select Linked Layers')),
+    CommandId.LAYER_CONVERT_TO_LABELS: _i(trans._('Convert to Labels')),
+    CommandId.LAYER_CONVERT_TO_IMAGE: _i(trans._('Convert to Image')),
+    CommandId.LAYER_CONVERT_TO_INT8: _i(trans._('Convert to int8')),
+    CommandId.LAYER_CONVERT_TO_INT16: _i(trans._('Convert to int16')),
+    CommandId.LAYER_CONVERT_TO_INT32: _i(trans._('Convert to int32')),
+    CommandId.LAYER_CONVERT_TO_INT64: _i(trans._('Convert to int64')),
+    CommandId.LAYER_CONVERT_TO_UINT8: _i(trans._('Convert to uint8')),
+    CommandId.LAYER_CONVERT_TO_UINT16: _i(trans._('Convert to uint16')),
+    CommandId.LAYER_CONVERT_TO_UINT32: _i(trans._('Convert to uint32')),
+    CommandId.LAYER_CONVERT_TO_UINT64: _i(trans._('Convert to uint64')),
+    CommandId.LAYER_PROJECT_MAX: _i(trans._('Max projection')),
+    CommandId.LAYER_PROJECT_MIN: _i(trans._('Min projection')),
+    CommandId.LAYER_PROJECT_STD: _i(trans._('Std projection')),
+    CommandId.LAYER_PROJECT_SUM: _i(trans._('Sum projection')),
+    CommandId.LAYER_PROJECT_MEAN: _i(trans._('Mean projection')),
+    CommandId.LAYER_PROJECT_MEDIAN: _i(trans._('Median projection')),
 }
 # fmt: on
