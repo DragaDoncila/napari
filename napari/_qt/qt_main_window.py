@@ -806,6 +806,20 @@ class Window:
             lambda: self._update_menu_state('view_menu')
         )
         self.main_menu.addMenu(self.view_menu)
+        # layers menu
+        self.layers_menu = build_qmodel_menu(
+            MenuId.MENUBAR_LAYERS,
+            title=trans._('&Layers'),
+            parent=self._qt_window,
+        )
+        self.main_menu.addMenu(self.layers_menu)
+        # acquisition menu
+        self.acquisition_menu = build_qmodel_menu(
+            MenuId.MENUBAR_ACQUISITION,
+            title=trans._('&Acquisition'),
+            parent=self._qt_window,
+        )
+        self.main_menu.addMenu(self.acquisition_menu)
         # plugin menu
         self.plugins_menu = menus.PluginsMenu(self)
         self.main_menu.addMenu(self.plugins_menu)

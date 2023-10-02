@@ -23,6 +23,7 @@ from npe2.manifest import contributions
 
 from napari.errors.reader_errors import MultipleReaderError
 from napari.utils.translations import trans
+from napari._app_model.constants import MenuGroup
 
 if TYPE_CHECKING:
     from npe2.manifest import PluginManifest
