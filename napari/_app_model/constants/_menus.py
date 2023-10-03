@@ -153,14 +153,17 @@ class MenuId(StrEnum):
                 {
                     'submenu': MenuId.LAYERS_VISUALIZE,
                     'title': trans._('Visualize'),
+                    'group': MenuGroup.LAYERS.EXISTING,
                 },
                 {
                     'submenu': MenuId.LAYERS_EDIT, 
-                    'title': trans._('Edit')
+                    'title': trans._('Edit'),
+                    'group': MenuGroup.LAYERS.EXISTING
                 },
                 {
                     'submenu': MenuId.LAYERS_MEASURE,
                     'title': trans._('Measure'),
+                    'group': MenuGroup.LAYERS.EXISTING
                 },
                 {
                     'submenu': MenuId.LAYERS_REGISTRATION, 
@@ -202,12 +205,6 @@ class MenuId(StrEnum):
                     'title': trans._('Transform')
                 },
             ],
-            MenuId.MENUBAR_ACQUISITION: [
-                {
-                    'submenu': MenuId.LAYERS_EDIT,
-                    'title': trans._('Placeholder'),
-                }
-            ],
         }
 
         return [
@@ -235,8 +232,9 @@ class MenuGroup:
         
     class LAYERS:
         NEW = '1_new'
-        GENERATE = '2_generate'
-        PLUGINS = '9_plugins'
+        EXISTING = '2_existing'
+        GENERATE = '3_generate'
+        PLUGINS = '4_plugins'
 
 
 def is_menu_contributable(menu_id: str) -> bool:

@@ -535,15 +535,15 @@ def _get_widgets_submenu_actions(
 
     widgets = mf.contributions.widgets
     multiprovider = len(widgets) > 1
-    submenu_id, submenu = _get_multiprovider_submenu(
-        multiprovider,
-        MenuId.MENUBAR_PLUGINS,
-        mf,
-        MenuGroup.PLUGIN_CONTRIBUTIONS,
-    )
 
     widget_actions: List[Action] = []
     for widget in widgets:
+        submenu_id, submenu = _get_multiprovider_submenu(
+            multiprovider,
+            MenuId.MENUBAR_PLUGINS,
+            mf,
+            MenuGroup.PLUGIN_CONTRIBUTIONS,
+        )
         full_name = menu_item_template.format(
             mf.display_name, widget.display_name
         )
@@ -625,6 +625,12 @@ def _get_widgets_submenu_actions(
                 title = widget.display_name
             # To display '&' instead of creating a shortcut
             title = title.replace("&", "&&")
+            command_id = widget.command
+
+            # need to collect all the submenus somehow too
+            if (menu_command := _get_menu_contribution_from_command(mf, command_id)) is not None:
+                title = full_name
+                submenu_id = menu_command[0]
 
             widget_actions.append(
                 Action(
@@ -698,11 +704,9 @@ def _npe2_manifest_to_actions(
             for item in items:
                 if isinstance(item, contributions.MenuCommand):
                     # give order to general items
-                    # when_group_order = _when_group_order(item)
-                    # if menu_id == 'napari/layers':
-                    #     when_group_order['group'] = MenuGroup.LAYERS.PLUGINS
-                    # rule = MenuRule(id=menu_id, **when_group_order)
-                    # cmds[item.command].append(rule)
+                    when_group_order = _when_group_order(item)
+                    if menu_id == 'napari/layers':
+                        when_group_order['group'] = MenuGroup.LAYERS.PLUGINS
                     rule = MenuRule(id=menu_id, **_when_group_order(item))
                     menu_cmds[item.command].append(rule)
                 else:
