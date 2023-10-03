@@ -18,6 +18,7 @@ from app_model.types import SubmenuItem
 
 from ...utils.translations import trans
 from napari.utils.compat import StrEnum
+from napari._app_model.context import LayerListSelectionContextKeys as LLSCK
 
 
 class MenuId(StrEnum):
@@ -26,6 +27,7 @@ class MenuId(StrEnum):
     MENUBAR_FILE = 'napari/file'
     FILE_OPEN_WITH_PLUGIN = 'napari/file/open_with_plugin'
     FILE_SAMPLES = 'napari/file/samples'
+    FILE_IO_UTILITIES = 'napari/file/io_utilities'
 
     MENUBAR_VIEW = 'napari/view'
     VIEW_AXES = 'napari/view/axes'
@@ -45,7 +47,6 @@ class MenuId(StrEnum):
 
     LAYERS_MEASURE = 'napari/layers/measure'
 
-    # LAYERS_GENERATE = 'napari/layers/generate'
     LAYERS_REGISTRATION = 'napari/layers/registration'
     LAYERS_PROJECTION = 'napari/layers/projection'
     LAYERS_SEGMENTATION = 'napari/layers/segmentation'
@@ -67,8 +68,6 @@ class MenuId(StrEnum):
     LAYERS_CONVERT_DTYPE = 'napari/layers/convert_dtype'
     LAYERS_PROJECT = 'napari/layers/project'
 
-    # TODO: FILE MENU!!!
-
     def __str__(self) -> str:
         return self.value
 
@@ -78,6 +77,7 @@ class MenuId(StrEnum):
 
         # TODO: add these to docs, with a lookup for what each menu is/does.
         _contributables = {
+            cls.FILE_IO_UTILITIES,
             cls.LAYERLIST_CONTEXT,
             cls.LAYERS_CONVERT_DTYPE,
             cls.LAYERS_PROJECT,
@@ -102,18 +102,41 @@ class MenuId(StrEnum):
         """List of predefined submenu items to construct the default menu structure"""
 
         menu_id_to_sub_menus = {
+            MenuId.MENUBAR_FILE: [
+                {
+                    'submenu': MenuId.FILE_OPEN_WITH_PLUGIN,
+                    'title': trans._('Open with Plugin'),
+                    'group': MenuGroup.NAVIGATION,
+                    'order': 99,
+                },
+                {
+                    'submenu': MenuId.FILE_SAMPLES,
+                    'title': trans._('Open Sample'),
+                    'group': MenuGroup.NAVIGATION,
+                    'order': 100,
+                },
+                {
+                    'submenu': MenuId.FILE_IO_UTILITIES,
+                    'title': trans._('IO Utilities'),
+                    'group': MenuGroup.NAVIGATION,
+                    'order': 101,
+                }
+            ],
             MenuId.LAYERLIST_CONTEXT: [
                 {
                     'submenu': MenuId.LAYERS_CONVERT_DTYPE,
                     'title': trans._('Convert data type'),
                     'group': MenuGroup.LAYERLIST_CONTEXT.CONVERSION,
                     'order': None,
+                    'enablement': LLSCK.all_selected_layers_labels,
+
                 },
                 {
                     'submenu': MenuId.LAYERS_PROJECT,
                     'title': trans._('Projections'),
                     'group': MenuGroup.LAYERLIST_CONTEXT.SPLIT_MERGE,
                     'order': None,
+                    'enablement': LLSCK.active_layer_is_image_3d,
                 },
             ],
             MenuId.MENUBAR_VIEW: [

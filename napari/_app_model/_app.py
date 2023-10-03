@@ -6,7 +6,6 @@ from typing import Dict
 
 from app_model import Application
 
-from napari._app_model._submenus import SUBMENUS
 from napari._app_model.actions._help_actions import HELP_ACTIONS
 from napari._app_model.actions._layer_actions import LAYER_ACTIONS
 from napari._app_model.actions._view_actions import VIEW_ACTIONS

@@ -35,7 +35,7 @@ from napari._app_model.constants import MenuGroup
 
 if TYPE_CHECKING:
     from npe2.manifest import PluginManifest
-    from npe2.manifest.contributions import WriterContribution
+    from npe2.manifest.contributions import WriterContribution, MenuCommand
     from npe2.plugin_manager import PluginName
     from npe2.types import LayerData, SampleDataCreator, WidgetCreator
     from qtpy.QtWidgets import QMenu  # type: ignore [attr-defined]
@@ -507,6 +507,16 @@ def _get_samples_submenu_actions(
         sample_actions.append(action)
     return submenu, sample_actions
 
+def _get_menu_contribution_from_command(mf: PluginManifest, command_id: str) -> Optional[Tuple[str, MenuCommand]]:
+    if not mf.contributions.menus:
+        return
+
+    for menu_key, menu_items in mf.contributions.menus.items():
+        for item in menu_items:
+            # item could be a Submenu, which has no command
+            menu_command_id = getattr(item, 'command', '')
+            if menu_command_id == command_id:
+                return menu_key, item
 
 def _get_widgets_submenu_actions(
     mf: PluginManifest,
