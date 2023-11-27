@@ -130,8 +130,12 @@ class _GraphSliceRequest:
         ixgrid = np.ix_(valid_nodes, not_disp)
         data = self.data.coords_buffer[ixgrid]
         sizes = self.size[valid_nodes, np.newaxis] / 2
-        distances = np.abs(data - not_disp_indices)
-        matches = np.all(distances <= sizes, axis=1)
+        distances = data - not_disp_indices
+        matches = np.all(
+            ((distances <= 0) & (abs(distances) <= sizes)), 
+            axis=1
+        )
+        distances = abs(data - not_disp_indices)
         if not np.any(matches):
             return np.empty(0, dtype=int), np.empty(0, dtype=int), 1
         size_match = sizes[matches]
