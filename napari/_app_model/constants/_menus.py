@@ -242,5 +242,7 @@ def is_menu_contributable(menu_id: str) -> bool:
     return (
         menu_id in MenuId.contributables()
         if menu_id.startswith("napari/")
+        #TODO: this is intended to allow plugins to contribute to other plugins' menus but we
+        # need to perform a more thorough check (probably not here though)
         else True
     )
