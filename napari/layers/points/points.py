@@ -25,7 +25,11 @@ from napari.layers.base._base_mouse_bindings import (
     highlight_box_handles,
     transform_with_box,
 )
-from napari.layers.points._points_constants import Mode, Shading
+from napari.layers.points._points_constants import (
+    Mode,
+    PointsProjectionMode,
+    Shading,
+)
 from napari.layers.points._points_mouse_bindings import add, highlight, select
 from napari.layers.points._points_utils import (
     _create_box_from_corners_3d,
@@ -36,7 +40,7 @@ from napari.layers.points._points_utils import (
 )
 from napari.layers.points._slice import _PointSliceRequest, _PointSliceResponse
 from napari.layers.utils._color_manager_constants import ColorMode
-from napari.layers.utils._slice_input import _SliceInput
+from napari.layers.utils._slice_input import _SliceInput, _ThickNDSlice
 from napari.layers.utils.color_manager import ColorManager
 from napari.layers.utils.color_transformations import ColorType
 from napari.layers.utils.interactivity_utils import (
@@ -304,6 +308,7 @@ class Points(Layer):
     """
 
     _modeclass = Mode
+    _projectionclass = PointsProjectionMode
 
     _drag_modes: ClassVar[Dict[Mode, Callable[["Points", Event], Any]]] = {
         Mode.PAN_ZOOM: no_op,
@@ -361,7 +366,7 @@ class Points(Layer):
         rotate=None,
         shear=None,
         affine=None,
-        opacity=1,
+        opacity=1.0,
         blending='translucent',
         visible=True,
         cache=True,
@@ -371,9 +376,17 @@ class Points(Layer):
         canvas_size_limits=(2, 10000),
         antialiasing=1,
         shown=True,
+        projection_mode='none',
     ) -> None:
-        if ndim is None and scale is not None:
-            ndim = len(scale)
+        if ndim is None:
+            if scale is not None:
+                ndim = len(scale)
+            elif (
+                data is not None
+                and hasattr(data, 'shape')
+                and len(data.shape) == 2
+            ):
+                ndim = data.shape[1]
 
         data, ndim = fix_data_points(data, ndim)
 
@@ -400,7 +413,6 @@ class Points(Layer):
         self._drag_box_stored = None
         self._is_selecting = False
         self._clipboard = {}
-        self._round_index = False
 
         super().__init__(
             data,
@@ -417,6 +429,7 @@ class Points(Layer):
             visible=visible,
             cache=cache,
             experimental_clipping_planes=experimental_clipping_planes,
+            projection_mode=projection_mode,
         )
 
         self.events.add(
@@ -1317,20 +1330,24 @@ class Points(Layer):
         state = self._get_base_state()
         state.update(
             {
-                'symbol': self.symbol
-                if self.data.size
-                else [self.current_symbol],
+                'symbol': (
+                    self.symbol if self.data.size else [self.current_symbol]
+                ),
                 'edge_width': self.edge_width,
                 'edge_width_is_relative': self.edge_width_is_relative,
-                'face_color': self.face_color
-                if self.data.size
-                else [self.current_face_color],
+                'face_color': (
+                    self.face_color
+                    if self.data.size
+                    else [self.current_face_color]
+                ),
                 'face_color_cycle': self.face_color_cycle,
                 'face_colormap': self.face_colormap.dict(),
                 'face_contrast_limits': self.face_contrast_limits,
-                'edge_color': self.edge_color
-                if self.data.size
-                else [self.current_edge_color],
+                'edge_color': (
+                    self.edge_color
+                    if self.data.size
+                    else [self.current_edge_color]
+                ),
                 'edge_color_cycle': self.edge_color_cycle,
                 'edge_colormap': self.edge_colormap.dict(),
                 'edge_contrast_limits': self.edge_contrast_limits,
@@ -1601,10 +1618,12 @@ class Points(Layer):
     def _update_draw(
         self, scale_factor, corner_pixels_displayed, shape_threshold
     ):
+        prev_scale = self.scale_factor
         super()._update_draw(
             scale_factor, corner_pixels_displayed, shape_threshold
         )
-        self._set_highlight(force=True)
+        # update highlight only if scale has changed, otherwise causes a cycle
+        self._set_highlight(force=(prev_scale != self.scale_factor))
 
     def _get_value(self, position) -> Optional[int]:
         """Index of the point at a given 2D position in data coordinates.
@@ -1781,37 +1800,34 @@ class Points(Layer):
         # executes the request on the calling thread directly.
         # For async slicing, the calling thread will not be the main thread.
         request = self._make_slice_request_internal(
-            self._slice_input, self._slice_indices
+            self._slice_input, self._data_slice
         )
         response = request()
         self._update_slice_response(response)
 
     def _make_slice_request(self, dims) -> _PointSliceRequest:
         """Make a Points slice request based on the given dims and these data."""
-        slice_input = self._make_slice_input(
-            dims.point, dims.ndisplay, dims.order
-        )
+        slice_input = self._make_slice_input(dims)
         # See Image._make_slice_request to understand why we evaluate this here
-        # instead of using `self._slice_indices`.
-        slice_indices = slice_input.data_indices(
-            self._data_to_world.inverse, round_index=False
-        )
-        return self._make_slice_request_internal(slice_input, slice_indices)
+        # instead of using `self._data_slice`.
+        data_slice = slice_input.data_slice(self._data_to_world.inverse)
+        return self._make_slice_request_internal(slice_input, data_slice)
 
     def _make_slice_request_internal(
-        self, slice_input: _SliceInput, dims_indices
+        self, slice_input: _SliceInput, data_slice: _ThickNDSlice
     ):
         return _PointSliceRequest(
-            dims=slice_input,
+            slice_input=slice_input,
             data=self.data,
-            dims_indices=dims_indices,
+            data_slice=data_slice,
+            projection_mode=self.projection_mode,
             out_of_slice_display=self.out_of_slice_display,
             size=self.size,
         )
 
     def _update_slice_response(self, response: _PointSliceResponse):
         """Handle a slicing response."""
-        self._slice_input = response.dims
+        self._slice_input = response.slice_input
         indices = response.indices
         scale = response.scale
 
@@ -1855,7 +1871,7 @@ class Points(Layer):
             and np.array_equal(self._drag_box, self._drag_box_stored)
         ) and not force:
             return
-        self._selected_data_stored = copy(self.selected_data)
+        self._selected_data_stored = Selection(self.selected_data)
         self._value_stored = copy(self._value)
         self._drag_box_stored = copy(self._drag_box)
 
@@ -2042,12 +2058,12 @@ class Points(Layer):
                 self.data[np.ix_(selection_indices, disp)] + shift
             )
             self.refresh()
-        self.events.data(
-            value=self.data,
-            action=ActionType.CHANGED,
-            data_indices=tuple(selection_indices),
-            vertex_indices=((),),
-        )
+            self.events.data(
+                value=self.data,
+                action=ActionType.CHANGED,
+                data_indices=tuple(selection_indices),
+                vertex_indices=((),),
+            )
 
     def _set_drag_start(
         self,
@@ -2086,7 +2102,7 @@ class Points(Layer):
             not_disp = self._slice_input.not_displayed
             data = deepcopy(self._clipboard['data'])
             offset = [
-                self._slice_indices[i] - self._clipboard['indices'][i]
+                self._data_slice[i] - self._clipboard['indices'][i]
                 for i in not_disp
             ]
             data[:, not_disp] = data[:, not_disp] + np.array(offset)
@@ -2144,7 +2160,7 @@ class Points(Layer):
                 'symbol': deepcopy(self.symbol[index]),
                 'edge_width': deepcopy(self.edge_width[index]),
                 'features': deepcopy(self.features.iloc[index]),
-                'indices': self._slice_indices,
+                'indices': self._data_slice,
                 'text': self.text._copy(index),
             }
         else:

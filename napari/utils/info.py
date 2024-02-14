@@ -9,7 +9,7 @@ import napari
 OS_RELEASE_PATH = "/etc/os-release"
 
 
-def _linux_sys_name():
+def _linux_sys_name() -> str:
     """
     Try to discover linux system name base on /etc/os-release file or lsb_release command output
     https://www.freedesktop.org/software/systemd/man/os-release.html
@@ -32,7 +32,7 @@ def _linux_sys_name():
     return _linux_sys_name_lsb_release()
 
 
-def _linux_sys_name_lsb_release():
+def _linux_sys_name_lsb_release() -> str:
     """
     Try to discover linux system name base on lsb_release command output
     """
@@ -52,7 +52,7 @@ def _linux_sys_name_lsb_release():
     return ""
 
 
-def _sys_name():
+def _sys_name() -> str:
     """
     Discover MacOS or Linux Human readable information. For Linux provide information about distribution.
     """
@@ -70,7 +70,7 @@ def _sys_name():
     return ""
 
 
-def sys_info(as_html=False):
+def sys_info(as_html: bool = False) -> str:
     """Gathers relevant module versions for troubleshooting purposes.
 
     Parameters
@@ -131,6 +131,8 @@ def sys_info(as_html=False):
     text += "<br><b>OpenGL:</b><br>"
 
     if loaded.get('vispy', False):
+        from napari._vispy.utils.gl import get_max_texture_sizes
+
         sys_info_text = (
             "<br>".join(
                 [
@@ -142,6 +144,8 @@ def sys_info(as_html=False):
             .replace("<br>", "<br>  - ")
         )
         text += f'  - {sys_info_text}<br>'
+        _, max_3d_texture_size = get_max_texture_sizes()
+        text += f'  - GL_MAX_3D_TEXTURE_SIZE: {max_3d_texture_size}<br>'
     else:
         text += "  - failed to load vispy"
 

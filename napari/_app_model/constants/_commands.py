@@ -8,6 +8,7 @@ documentation.
 CommandId values should be namespaced, e.g. 'napari:layer:something' for a command
 that operates on layers.
 """
+
 from typing import NamedTuple, Optional
 
 from napari.utils.compat import StrEnum
@@ -36,6 +37,7 @@ class CommandId(StrEnum):
     DLG_CLOSE = 'napari:window:file:close_dialog'
     DLG_QUIT = 'napari:window:file:quit_dialog'
     RESTART = 'napari:window:file:restart'
+    IMAGE_FROM_CLIPBOARD = 'napari:window:file:_image_from_clipboard'
 
     # View menubar
     TOGGLE_FULLSCREEN = 'napari:window:view:toggle_fullscreen'
@@ -74,6 +76,10 @@ class CommandId(StrEnum):
     LAYER_SPLIT_RGB = 'napari:layer:split_rgb'
     LAYER_MERGE_STACK = 'napari:layer:merge_stack'
     LAYER_TOGGLE_VISIBILITY = 'napari:layer:toggle_visibility'
+    SHOW_SELECTED_LAYERS = 'napari:layer:show_selected'
+    HIDE_SELECTED_LAYERS = 'napari:layer:hide_selected'
+    SHOW_UNSELECTED_LAYERS = 'napari:layer:show_unselected'
+    HIDE_UNSELECTED_LAYERS = 'napari:layer:hide_unselected'
 
     LAYER_LINK_SELECTED = 'napari:layer:link_selected_layers'
     LAYER_UNLINK_SELECTED = 'napari:layer:unlink_selected_layers'
@@ -132,6 +138,7 @@ _COMMAND_INFO = {
     CommandId.DLG_CLOSE: _i(trans._('Close Window')),
     CommandId.DLG_QUIT: _i(trans._('Exit')),
     CommandId.RESTART: _i(trans._('Restart')),
+    CommandId.IMAGE_FROM_CLIPBOARD: _i(trans._("New Image from Clipboard")),
 
     # View menubar
     CommandId.TOGGLE_FULLSCREEN: _i(trans._('Toggle Full Screen')),
@@ -169,6 +176,10 @@ _COMMAND_INFO = {
     CommandId.LAYER_SPLIT_RGB: _i(trans._('Split RGB')),
     CommandId.LAYER_MERGE_STACK: _i(trans._('Merge to Stack')),
     CommandId.LAYER_TOGGLE_VISIBILITY: _i(trans._('Toggle visibility')),
+    CommandId.SHOW_SELECTED_LAYERS: _i(trans._('Show All Selected Layers')),
+    CommandId.HIDE_SELECTED_LAYERS: _i(trans._('Hide All Selected Layers')),
+    CommandId.SHOW_UNSELECTED_LAYERS: _i(trans._('Show All Unselected Layers')),
+    CommandId.HIDE_UNSELECTED_LAYERS: _i(trans._('Hide All Unselected Layers')),
     CommandId.LAYER_LINK_SELECTED: _i(trans._('Link Layers')),
     CommandId.LAYER_UNLINK_SELECTED: _i(trans._('Unlink Layers')),
     CommandId.LAYER_SELECT_LINKED: _i(trans._('Select Linked Layers')),

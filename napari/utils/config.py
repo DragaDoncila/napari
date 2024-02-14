@@ -1,7 +1,9 @@
 """Napari Configuration.
 """
+
 import os
 import warnings
+from typing import Optional
 
 from napari.utils.translations import trans
 
@@ -32,7 +34,7 @@ https://github.com/napari/napari/pull/1909.
 # fixed values in the module level __getattr__
 # https://peps.python.org/pep-0562/
 # Other module attributes are defined as normal.
-def __getattr__(name):
+def __getattr__(name: str) -> Optional[bool]:
     if name == 'octree_config':
         warnings.warn(
             trans._(

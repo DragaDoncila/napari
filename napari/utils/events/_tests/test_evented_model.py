@@ -9,8 +9,8 @@ import numpy as np
 import pytest
 from dask import delayed
 from dask.delayed import Delayed
-from pydantic import Field
 
+from napari._pydantic_compat import Field
 from napari.utils.events import EmitterGroup, EventedModel
 from napari.utils.events.custom_types import Array
 from napari.utils.misc import StringEnum
@@ -261,8 +261,7 @@ def test_update_with_inner_model_union():
 def test_update_with_inner_model_protocol():
     @runtime_checkable
     class InnerProtocol(Protocol):
-        def string(self) -> str:
-            ...
+        def string(self) -> str: ...
 
         # Protocol fields are not successfully set without explicit validation.
         @classmethod

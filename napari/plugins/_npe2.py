@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-import warnings
 import inspect
+import warnings
 from collections import defaultdict
+from functools import partial
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -29,18 +30,19 @@ from npe2 import io_utils, plugin_manager as pm
 from npe2.manifest import contributions
 from qtpy.QtWidgets import QWidget  # type: ignore [attr-defined]
 
+from napari._app_model.constants import MenuGroup
 from napari.errors.reader_errors import MultipleReaderError
 from napari.utils.translations import trans
-from napari._app_model.constants import MenuGroup
 
 if TYPE_CHECKING:
     from npe2.manifest import PluginManifest
-    from npe2.manifest.contributions import WriterContribution, MenuCommand
+    from npe2.manifest.contributions import MenuCommand, WriterContribution
     from npe2.plugin_manager import PluginName
     from npe2.types import LayerData, SampleDataCreator, WidgetCreator
-    from qtpy.QtWidgets import QMenu  # type: ignore [attr-defined]
+    from qtpy.QtWidgets import QMenu
 
     from napari._app_model.constants import MenuId
+    from napari._qt.qt_viewer import QtViewer
     from napari.layers import Layer
     from napari.types import SampleDict
 
@@ -174,10 +176,12 @@ def populate_qmenu(menu: QMenu, menu_key: str):
         if isinstance(item, contributions.Submenu):
             subm_contrib = pm.get_submenu(item.submenu)
             subm = menu.addMenu(subm_contrib.label)
+            assert subm is not None
             populate_qmenu(subm, subm_contrib.id)
         else:
             cmd = pm.get_command(item.command)
             action = menu.addAction(cmd.title)
+            assert action is not None
             action.triggered.connect(_wrap(cmd))
 
 
@@ -356,7 +360,6 @@ def _rebuild_npe1_samples_menu() -> None:
     """Register submenu and actions for all npe1 plugins, clearing all first."""
     from napari._app_model import get_app
     from napari._app_model.constants import MenuGroup, MenuId
-    from napari._qt.qt_viewer import QtViewer
     from napari.plugins import menu_item_template, plugin_manager
 
     app = get_app()
@@ -398,7 +401,7 @@ def _rebuild_npe1_samples_menu() -> None:
                     qt_viewer.viewer.open_sample(plugin, sample)
                 except MultipleReaderError as e:
                     handle_gui_reading(
-                        e.paths,
+                        [str(p) for p in e.paths],
                         qt_viewer,
                         stack=False,
                     )
@@ -448,15 +451,27 @@ def _get_multiprovider_submenu(
     return submenu_id, submenu
 
 
+# Note `QtViewer` gets added to `injection_store.namespace` during
+# `init_qactions` so does not need to be imported for type annotation resolution
+def _add_sample(qt_viewer: QtViewer, plugin=str, sample=str) -> None:
+    from napari._qt.dialogs.qt_reader_dialog import handle_gui_reading
+
+    try:
+        qt_viewer.viewer.open_sample(plugin, sample)
+    except MultipleReaderError as e:
+        handle_gui_reading(
+            [str(p) for p in e.paths],
+            qt_viewer,
+            stack=False,
+        )
+
+
 def _get_samples_submenu_actions(
     mf: PluginManifest,
 ) -> Tuple[List[Any], List[Any]]:
     """Get sample data submenu and actions for a single npe2 plugin manifest."""
     from napari._app_model.constants import MenuGroup, MenuId
     from napari.plugins import menu_item_template
-
-    if TYPE_CHECKING:
-        from napari._qt.qt_viewer import QtViewer
 
     # If no sample data, return
     if not mf.contributions.sample_data:
@@ -472,22 +487,11 @@ def _get_samples_submenu_actions(
 
     sample_actions: List[Action] = []
     for sample in sample_data:
-
-        def _add_sample(
-            qt_viewer: QtViewer,
+        _add_sample_partial = partial(
+            _add_sample,
             plugin=mf.name,
             sample=sample.key,
-        ):
-            from napari._qt.dialogs.qt_reader_dialog import handle_gui_reading
-
-            try:
-                qt_viewer.viewer.open_sample(plugin, sample)
-            except MultipleReaderError as e:
-                handle_gui_reading(
-                    e.paths,
-                    qt_viewer,
-                    stack=False,
-                )
+        )
 
         if multiprovider:
             title = sample.display_name
@@ -502,14 +506,17 @@ def _get_samples_submenu_actions(
             id=f'{mf.name}:{sample.key}',
             title=title,
             menus=[{'id': submenu_id, 'group': MenuGroup.NAVIGATION}],
-            callback=_add_sample,
+            callback=_add_sample_partial,
         )
         sample_actions.append(action)
     return submenu, sample_actions
 
-def _get_menu_contribution_from_command(mf: PluginManifest, command_id: str) -> Optional[Tuple[str, MenuCommand]]:
+
+def _get_menu_contribution_from_command(
+    mf: PluginManifest, command_id: str
+) -> Optional[Tuple[str, MenuCommand]]:
     if not mf.contributions.menus:
-        return
+        return None
 
     for menu_key, menu_items in mf.contributions.menus.items():
         for item in menu_items:
@@ -517,6 +524,8 @@ def _get_menu_contribution_from_command(mf: PluginManifest, command_id: str) -> 
             menu_command_id = getattr(item, 'command', '')
             if menu_command_id == command_id:
                 return menu_key, item
+    return None
+
 
 def _get_widgets_submenu_actions(
     mf: PluginManifest,
@@ -628,7 +637,11 @@ def _get_widgets_submenu_actions(
             command_id = widget.command
 
             # need to collect all the submenus somehow too
-            if (menu_command := _get_menu_contribution_from_command(mf, command_id)) is not None:
+            if (
+                menu_command := _get_menu_contribution_from_command(
+                    mf, command_id
+                )
+            ) is not None:
                 title = full_name
                 submenu_id = menu_command[0]
 
