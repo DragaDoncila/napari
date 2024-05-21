@@ -6,8 +6,6 @@ from itertools import cycle
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
-    ClassVar,
     Literal,
     Optional,
     Union,
@@ -19,18 +17,13 @@ import pandas as pd
 from psygnal.containers import Selection
 from scipy.stats import gmean
 
-from napari.layers.base import Layer, no_op
 from napari.layers.base._base_constants import ActionType
-from napari.layers.base._base_mouse_bindings import (
-    highlight_box_handles,
-    transform_with_box,
-)
+from napari.layers.base.base import Layer
+from napari.layers.points._coordinates import _Coordinates
 from napari.layers.points._points_constants import (
     Mode,
-    PointsProjectionMode,
     Shading,
 )
-from napari.layers.points._points_mouse_bindings import add, highlight, select
 from napari.layers.points._points_utils import (
     _create_box_from_corners_3d,
     coerce_symbols,
@@ -41,20 +34,17 @@ from napari.layers.points._points_utils import (
 from napari.layers.points._slice import _PointSliceRequest, _PointSliceResponse
 from napari.layers.utils._color_manager_constants import ColorMode
 from napari.layers.utils._slice_input import _SliceInput, _ThickNDSlice
-from napari.layers.utils.color_manager import ColorManager
 from napari.layers.utils.color_transformations import ColorType
 from napari.layers.utils.interactivity_utils import (
     displayed_plane_from_nd_line_segment,
 )
 from napari.layers.utils.layer_utils import (
     _features_to_properties,
-    _FeatureTable,
     _unique_element,
 )
 from napari.layers.utils.text_manager import TextManager
 from napari.utils.colormaps import Colormap, ValidColormapArg
 from napari.utils.colormaps.standardize_color import hex_to_name, rgb_to_hex
-from napari.utils.events import Event
 from napari.utils.events.custom_types import Array
 from napari.utils.events.migrations import deprecation_warning_event
 from napari.utils.geometry import project_points_onto_plane, rotate_points
@@ -69,7 +59,7 @@ if TYPE_CHECKING:
 DEFAULT_COLOR_CYCLE = np.array([[1, 0, 1, 1], [0, 1, 0, 1]])
 
 
-class Points(Layer):
+class Points(_Coordinates):
     """Points layer.
 
     Parameters
@@ -319,34 +309,7 @@ class Points(Layer):
         None after dragging is done.
     """
 
-    _modeclass = Mode
-    _projectionclass = PointsProjectionMode
-
-    _drag_modes: ClassVar[dict[Mode, Callable[['Points', Event], Any]]] = {
-        Mode.PAN_ZOOM: no_op,
-        Mode.TRANSFORM: transform_with_box,
-        Mode.ADD: add,
-        Mode.SELECT: select,
-    }
-
-    _move_modes: ClassVar[dict[Mode, Callable[['Points', Event], Any]]] = {
-        Mode.PAN_ZOOM: no_op,
-        Mode.TRANSFORM: highlight_box_handles,
-        Mode.ADD: no_op,
-        Mode.SELECT: highlight,
-    }
-    _cursor_modes: ClassVar[dict[Mode, str]] = {
-        Mode.PAN_ZOOM: 'standard',
-        Mode.TRANSFORM: 'standard',
-        Mode.ADD: 'crosshair',
-        Mode.SELECT: 'standard',
-    }
-
     # TODO  write better documentation for border_color and face_color
-
-    # The max number of points that will ever be used to render the thumbnail
-    # If more points are present then they are randomly subsampled
-    _max_points_thumbnail = 1024
 
     @rename_argument(
         'edge_width', 'border_width', since_version='0.5.0', version='0.6.0'
@@ -420,82 +383,45 @@ class Points(Layer):
         translate=None,
         visible=True,
     ) -> None:
-        if ndim is None:
-            if scale is not None:
-                ndim = len(scale)
-            elif (
-                data is not None
-                and hasattr(data, 'shape')
-                and len(data.shape) == 2
-            ):
-                ndim = data.shape[1]
-
-        data, ndim = fix_data_points(data, ndim)
-
-        # Indices of selected points
-        self._selected_data_stored = set()
-        self._selected_data_history = set()
-        # Indices of selected points within the currently viewed slice
-        self._selected_view = []
-        # Index of hovered point
-        self._value = None
-        self._value_stored = None
-        self._highlight_index = []
-        self._highlight_box = None
-
-        self._drag_start = None
-        self._drag_normal = None
-        self._drag_up = None
-
-        # initialize view data
-        self.__indices_view = np.empty(0, int)
-        self._view_size_scale = []
-
-        self._drag_box = None
-        self._drag_box_stored = None
-        self._is_selecting = False
-        self._clipboard = {}
-
         super().__init__(
-            data,
-            ndim,
-            name=name,
-            metadata=metadata,
-            scale=scale,
-            translate=translate,
-            rotate=rotate,
-            shear=shear,
+            data=data,
+            ndim=ndim,
             affine=affine,
-            opacity=opacity,
+            antialiasing=antialiasing,
             blending=blending,
-            visible=visible,
+            border_color=border_color,
+            border_color_cycle=border_color_cycle,
+            border_colormap=border_colormap,
+            border_contrast_limits=border_contrast_limits,
+            border_width=border_width,
+            border_width_is_relative=border_width_is_relative,
             cache=cache,
+            canvas_size_limits=canvas_size_limits,
             experimental_clipping_planes=experimental_clipping_planes,
+            face_color=face_color,
+            face_color_cycle=face_color_cycle,
+            face_colormap=face_colormap,
+            face_contrast_limits=face_contrast_limits,
+            feature_defaults=feature_defaults,
+            features=features,
+            metadata=metadata,
+            n_dimensional=n_dimensional,
+            name=name,
+            opacity=opacity,
+            out_of_slice_display=out_of_slice_display,
             projection_mode=projection_mode,
-        )
-
-        self.events.add(
-            size=Event,
-            current_size=Event,
-            border_width=Event,
-            current_border_width=Event,
-            border_width_is_relative=Event,
-            face_color=Event,
-            current_face_color=Event,
-            border_color=Event,
-            current_border_color=Event,
-            properties=Event,
-            current_properties=Event,
-            symbol=Event,
-            current_symbol=Event,
-            out_of_slice_display=Event,
-            n_dimensional=Event,
-            highlight=Event,
-            shading=Event,
-            antialiasing=Event,
-            canvas_size_limits=Event,
-            features=Event,
-            feature_defaults=Event,
+            properties=properties,
+            property_choices=property_choices,
+            rotate=rotate,
+            scale=scale,
+            shading=shading,
+            shear=shear,
+            shown=shown,
+            size=size,
+            symbol=symbol,
+            text=text,
+            translate=translate,
+            visible=visible,
         )
 
         deprecated_events = {}
@@ -519,91 +445,6 @@ class Points(Layer):
             deprecated_events[old_attr] = old_emitter
 
         self.events.add(**deprecated_events)
-
-        # Save the point coordinates
-        self._data = np.asarray(data)
-
-        self._feature_table = _FeatureTable.from_layer(
-            features=features,
-            feature_defaults=feature_defaults,
-            properties=properties,
-            property_choices=property_choices,
-            num_data=len(self.data),
-        )
-
-        self._text = TextManager._from_layer(
-            text=text,
-            features=self.features,
-        )
-
-        self._border_width_is_relative = False
-        self._shown = np.empty(0).astype(bool)
-
-        # Indices of selected points
-        self._selected_data: Selection[int] = Selection()
-        self._selected_data_stored = set()
-        self._selected_data_history = set()
-        # Indices of selected points within the currently viewed slice
-        self._selected_view = []
-
-        # The following point properties are for the new points that will
-        # be added. For any given property, if a list is passed to the
-        # constructor so each point gets its own value then the default
-        # value is used when adding new points
-        self._current_size = np.asarray(size) if np.isscalar(size) else 10
-        self._current_border_width = (
-            np.asarray(border_width) if np.isscalar(border_width) else 0.1
-        )
-        self.current_symbol = (
-            np.asarray(symbol) if np.isscalar(symbol) else 'o'
-        )
-
-        # Index of hovered point
-        self._value = None
-        self._value_stored = None
-        self._mode = Mode.PAN_ZOOM
-        self._status = self.mode
-
-        color_properties = (
-            self._feature_table.properties()
-            if self._data.size > 0
-            else self._feature_table.currents()
-        )
-        self._border = ColorManager._from_layer_kwargs(
-            n_colors=len(data),
-            colors=border_color,
-            continuous_colormap=border_colormap,
-            contrast_limits=border_contrast_limits,
-            categorical_colormap=border_color_cycle,
-            properties=color_properties,
-        )
-        self._face = ColorManager._from_layer_kwargs(
-            n_colors=len(data),
-            colors=face_color,
-            continuous_colormap=face_colormap,
-            contrast_limits=face_contrast_limits,
-            categorical_colormap=face_color_cycle,
-            properties=color_properties,
-        )
-
-        if n_dimensional is not None:
-            self._out_of_slice_display = n_dimensional
-        else:
-            self._out_of_slice_display = out_of_slice_display
-
-        # Save the point style params
-        self.size = size
-        self.shown = shown
-        self.symbol = symbol
-        self.border_width = border_width
-        self.border_width_is_relative = border_width_is_relative
-
-        self.canvas_size_limits = canvas_size_limits
-        self.shading = shading
-        self.antialiasing = antialiasing
-
-        # Trigger generation of view slice and thumbnail
-        self.refresh()
 
     @classmethod
     def _add_deprecated_properties(cls) -> None:
