@@ -72,3 +72,19 @@ def connect_setattr_value(emitter: Emitter, obj, attr: str):
 
     emitter.connect(_cb)
     # weakref.finalize(obj, emitter.disconnect, _cb)
+
+
+def mirror_event(source_emitter, mirror_emitter, attrs):
+    """Ensure that mirror emitter fires when source_emitter fires.
+
+    The data passed in the event will be that given by attrs.
+    """
+    ref = weakref.ref(mirror_emitter)
+
+    def _cb(event):
+        if (ob := ref()) is None:
+            source_emitter.disconnect(_cb)
+            return
+        ob(**{at: getattr(event, at) for at in attrs})
+
+    source_emitter.connect(_cb)

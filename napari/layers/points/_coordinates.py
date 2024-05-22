@@ -1525,7 +1525,7 @@ class _Coordinates(Layer):
             self.__indices_view = value[self.shown[value]]
 
     @property
-    def _view_data(self) -> np.ndarray:
+    def _view_coordinates(self) -> np.ndarray:
         """Get the coords of the points in view
 
         Returns
@@ -1534,14 +1534,14 @@ class _Coordinates(Layer):
             Array of coordinates for the N points in view
         """
         if len(self._indices_view) > 0:
-            data = self.coordinates[
+            coords = self.coordinates[
                 np.ix_(self._indices_view, self._slice_input.displayed)
             ]
         else:
             # if no points in this slice send dummy data
-            data = np.zeros((0, self._slice_input.ndisplay))
+            coords = np.zeros((0, self._slice_input.ndisplay))
 
-        return data
+        return coords
 
     @property
     def _view_text(self) -> np.ndarray:
@@ -1571,7 +1571,7 @@ class _Coordinates(Layer):
             The vispy text anchor for the y axis
         """
         return self.text.compute_text_coords(
-            self._view_data,
+            self._view_coordinates,
             self._slice_input.ndisplay,
             self._slice_input.order,
         )
@@ -1679,9 +1679,9 @@ class _Coordinates(Layer):
             Index of point that is at the current coordinate if any.
         """
         # Display points if there are any in this slice
-        view_data = self._view_data
+        view_coords = self._view_coordinates
         selection = None
-        if len(view_data) > 0:
+        if len(view_coords) > 0:
             displayed_position = [
                 position[i] for i in self._slice_input.displayed
             ]
@@ -1696,7 +1696,7 @@ class _Coordinates(Layer):
             # on self.get_value()) won't be aware of the real extent of points, causing
             # unexpected behaviour. See #3734 for details.
             sizes = np.expand_dims(self._view_size, axis=1) / scale_ratio / 2
-            distances = abs(view_data - displayed_position)
+            distances = abs(view_coords - displayed_position)
             in_slice_matches = np.all(
                 distances <= sizes,
                 axis=1,
@@ -1738,7 +1738,7 @@ class _Coordinates(Layer):
 
         # project the in view points onto the plane
         projected_points, projection_distances = project_points_onto_plane(
-            points=self._view_data,
+            points=self._view_coordinates,
             plane_point=plane_point,
             plane_normal=plane_normal,
         )
