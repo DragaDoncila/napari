@@ -23,20 +23,20 @@ class QCommandPalette(QtW.QWidget):
     def __init__(self, parent: QtW.QWidget | None = None):
         super().__init__(parent)
 
-        self._line = QCommandLineEdit()
-        self._list = QCommandList()
+        self._search_box = QCommandLineEdit()
+        self._command_widgets = QCommandList()
         _layout = QtW.QVBoxLayout(self)
-        _layout.addWidget(self._line)
-        _layout.addWidget(self._list)
+        _layout.addWidget(self._search_box)
+        _layout.addWidget(self._command_widgets)
         self.setLayout(_layout)
 
-        self._line.textChanged.connect(self._on_text_changed)
-        self._list.commandClicked.connect(self._on_command_clicked)
-        self._line.editingFinished.connect(self.hide)
+        self._search_box.textChanged.connect(self._on_text_changed)
+        self._command_widgets.commandClicked.connect(self._on_command_clicked)
+        self._search_box.editingFinished.connect(self.hide)
         font = self.font()
         font.setPointSize(16)
         self.setFont(font)
-        self._line.setFont(font)
+        self._search_box.setFont(font)
         self.hide()
 
         app = get_app_model()
@@ -52,15 +52,15 @@ class QCommandPalette(QtW.QWidget):
         return QtCore.QSize(600, 400)
 
     def extend_command(self, list_of_commands: list[CommandRule]) -> None:
-        self._list.extend_command(list_of_commands)
+        self._command_widgets.extend_command(list_of_commands)
         return
 
     def _on_text_changed(self, text: str) -> None:
-        self._list.update_for_text(text)
+        self._command_widgets.update_for_text(text)
         return
 
     def _on_command_clicked(self, index: int) -> None:
-        self._list.execute(index)
+        self._command_widgets.execute(index)
         self.hide()
         return
 
@@ -69,7 +69,7 @@ class QCommandPalette(QtW.QWidget):
         app = get_app_model()
         if app.menus.COMMAND_PALETTE_ID not in changed_menus:
             return
-        all_cmds_set = set(self._list.all_commands)
+        all_cmds_set = set(self._command_widgets.all_commands)
         palette_menu_commands = [
             item.command
             for item in app.menus.get_menu(app.menus.COMMAND_PALETTE_ID)
@@ -79,10 +79,10 @@ class QCommandPalette(QtW.QWidget):
         removed = all_cmds_set - palette_menu_set
         added = palette_menu_set - all_cmds_set
         for elem in removed:
-            self._list.all_commands.remove(elem)
+            self._command_widgets.all_commands.remove(elem)
         for elem in palette_menu_commands:
             if elem in added:
-                self._list.all_commands.append(elem)
+                self._command_widgets.all_commands.append(elem)
         return
 
     def focusOutEvent(self, a0: QtGui.QFocusEvent | None) -> None:
@@ -95,12 +95,12 @@ class QCommandPalette(QtW.QWidget):
         context: dict[str, Any] = {}
         context.update(get_context(parent))
         context.update(get_context(parent._qt_viewer.viewer.layers))
-        self._list._app_model_context = context
+        self._command_widgets._app_model_context = context
         return
 
     def show(self) -> None:
-        self._line.setText('')
-        self._list.update_for_text('')
+        self._search_box.setText('')
+        self._command_widgets.update_for_text('')
         super().show()
         if parent := self.parentWidget():
             parent_rect = parent.rect()
@@ -113,7 +113,7 @@ class QCommandPalette(QtW.QWidget):
             self.resize(w, self_size.height())
 
         self.raise_()
-        self._line.setFocus()
+        self._search_box.setFocus()
         return
 
     def hide(self) -> None:
@@ -123,7 +123,7 @@ class QCommandPalette(QtW.QWidget):
 
     def text(self) -> str:
         """Return the text in the line edit."""
-        return self._line.text()
+        return self._search_box.text()
 
 
 class QCommandLineEdit(QtW.QLineEdit):
@@ -147,22 +147,22 @@ class QCommandLineEdit(QtW.QLineEdit):
                 return True
             if key == Qt.Key.Key_Return:
                 palette = self.commandPalette()
-                if palette._list.can_execute():
+                if palette._command_widgets.can_execute():
                     self.commandPalette().hide()
-                    self.commandPalette()._list.execute()
+                    self.commandPalette()._command_widgets.execute()
                     return True
                 return False
             if key == Qt.Key.Key_Up:
-                self.commandPalette()._list.move_selection(-1)
+                self.commandPalette()._command_widgets.move_selection(-1)
                 return True
             if key == Qt.Key.Key_PageUp:
-                self.commandPalette()._list.move_selection(-10)
+                self.commandPalette()._command_widgets.move_selection(-10)
                 return True
             if key == Qt.Key.Key_Down:
-                self.commandPalette()._list.move_selection(1)
+                self.commandPalette()._command_widgets.move_selection(1)
                 return True
             if key == Qt.Key.Key_PageDown:
-                self.commandPalette()._list.move_selection(10)
+                self.commandPalette()._command_widgets.move_selection(10)
                 return True
         return super().event(e)
 
