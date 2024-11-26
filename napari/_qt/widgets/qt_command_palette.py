@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from collections.abc import Iterator, Mapping
+from collections.abc import Iterator
 from typing import TYPE_CHECKING, Any, cast
 
 from app_model.backends.qt import QCommandRuleAction, QModelMenu
@@ -386,15 +386,6 @@ class QCommandList(QtW.QListView):
         def indexWidget(
             self, index: QtCore.QModelIndex
         ) -> QCommandLabel | None: ...
-
-
-def _enabled(action: CommandRule, context: Mapping[str, Any]) -> bool:
-    if action.enablement is None:
-        return True
-    try:
-        return action.enablement.eval(context)
-    except NameError:
-        return False
 
 
 def _match_score(action: CommandRule, input_text: str) -> float:
