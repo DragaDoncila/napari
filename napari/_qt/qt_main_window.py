@@ -213,8 +213,6 @@ class _QtMainWindow(QMainWindow):
             self._toggle_status_thread
         )
 
-        self._command_palette = QCommandPalette(self)
-
     def _toggle_status_thread(self, event: Event):
         if event.value:
             self.status_thread.start()
@@ -719,6 +717,8 @@ class Window:
         # menus. We need a single context to contain all keys required for
         # menu update, so we add them to the layerlist context for now.
         add_dummy_actions(self._qt_viewer.viewer.layers._ctx)
+        self._qt_window._command_palette = QCommandPalette(self._qt_window)
+
         self._update_theme()
         self._update_theme_font_size()
         get_settings().appearance.events.theme.connect(self._update_theme)
@@ -858,6 +858,11 @@ class Window:
     def _status_bar(self):
         # TODO: remove from window
         return self._qt_window.statusBar()
+
+    def _update_command_palette_state(self):
+        all_ctx = dict(get_context(self._qt_window))
+        all_ctx.update(get_context(self._qt_viewer.viewer.layers))
+        self._qt_window._command_palette.update_from_context(all_ctx)
 
     def _update_menu_state(self, menu: MenuStr):
         """Update enabled/visible state of menu item with context."""
@@ -1021,7 +1026,7 @@ class Window:
         if palette.isVisible():
             palette.hide()
         else:
-            palette.update_context(self._qt_window)
+            self._update_command_palette_state()
             palette.show()
 
     def _toggle_fullscreen(self):

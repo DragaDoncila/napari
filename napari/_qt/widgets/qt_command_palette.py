@@ -4,27 +4,32 @@ import re
 from collections.abc import Iterator, Mapping
 from typing import TYPE_CHECKING, Any, cast
 
-from app_model.types import CommandRule, MenuItem
+from app_model.backends.qt import QCommandRuleAction, QModelMenu
+from app_model.types import CommandRule
 from qtpy import QtCore, QtGui, QtWidgets as QtW
 from qtpy.QtCore import Qt, Signal
 
 from napari._app_model import get_app_model
-from napari._app_model.context._context import get_context
-
-if TYPE_CHECKING:
-    from napari._qt.qt_main_window import _QtMainWindow
+from napari.utils.translations import trans
 
 
-class QCommandPalette(QtW.QWidget):
+class QCommandPalette(QModelMenu):
     """A Qt command palette widget."""
 
     hidden = Signal()
 
-    def __init__(self, parent: QtW.QWidget | None = None):
-        super().__init__(parent)
-
-        self._search_box = QCommandLineEdit()
+    def __init__(self, parent):
+        app = get_app_model()
         self._command_widgets = QCommandList()
+        super().__init__(
+            menu_id=app.menus.COMMAND_PALETTE_ID,
+            app=app,
+            title=trans._('Command Palette'),
+            parent=parent,
+        )
+        self._command_widgets.setParent(self)
+
+        self._search_box = QCommandLineEdit(self)
         _layout = QtW.QVBoxLayout(self)
         _layout.addWidget(self._search_box)
         _layout.addWidget(self._command_widgets)
@@ -39,14 +44,16 @@ class QCommandPalette(QtW.QWidget):
         self._search_box.setFont(font)
         self.hide()
 
-        app = get_app_model()
-        # this appears to be a flat list of menu items, even though the
-        # type hint suggests menu or submenu
-        menu_items = app.menus.get_menu(app.menus.COMMAND_PALETTE_ID)
+        # TODO: we think self.actions() can have QAction separators, should check
+        # and not add them to command palette on creation
+        # then we might be able to remove the isinstance check
         self.extend_command(
-            [item.command for item in menu_items if isinstance(item, MenuItem)]
+            [
+                action
+                for action in self.actions()
+                if isinstance(action, QCommandRuleAction)
+            ]
         )
-        app.menus.menus_changed.connect(self._on_app_menus_changed)
 
     def sizeHint(self) -> QtCore.QSize:
         return QtCore.QSize(600, 400)
@@ -64,39 +71,21 @@ class QCommandPalette(QtW.QWidget):
         self.hide()
         return
 
-    def _on_app_menus_changed(self, changed_menus: set[str]) -> None:
-        """Connected to app_model.menus.menus_changed."""
-        app = get_app_model()
-        if app.menus.COMMAND_PALETTE_ID not in changed_menus:
-            return
-        all_cmds_set = set(self._command_widgets.all_commands)
-        palette_menu_commands = [
-            item.command
-            for item in app.menus.get_menu(app.menus.COMMAND_PALETTE_ID)
-            if isinstance(item, MenuItem)
-        ]
-        palette_menu_set = set(palette_menu_commands)
-        removed = all_cmds_set - palette_menu_set
-        added = palette_menu_set - all_cmds_set
-        for elem in removed:
-            self._command_widgets.all_commands.remove(elem)
-        for elem in palette_menu_commands:
-            if elem in added:
-                self._command_widgets.all_commands.append(elem)
-        return
+    def rebuild(self):
+        super().rebuild()
+        self._command_widgets.all_commands.clear()
+        self.extend_command(
+            [
+                action
+                for action in self.actions()
+                if isinstance(action, QCommandRuleAction)
+            ]
+        )
 
     def focusOutEvent(self, a0: QtGui.QFocusEvent | None) -> None:
         """Hide the palette when focus is lost."""
         self.hide()
         return super().focusOutEvent(a0)
-
-    def update_context(self, parent: _QtMainWindow) -> None:
-        """Update the context of the palette."""
-        context: dict[str, Any] = {}
-        context.update(get_context(parent))
-        context.update(get_context(parent._qt_viewer.viewer.layers))
-        self._command_widgets._app_model_context = context
-        return
 
     def show(self) -> None:
         self._search_box.setText('')
@@ -201,24 +190,25 @@ class QCommandLabel(QtW.QLabel):
 
     DISABLED_COLOR = 'gray'
 
-    def __init__(self, cmd: CommandRule | None = None):
+    def __init__(self, cmd: QCommandRuleAction | None = None):
         super().__init__()
-        self._command: CommandRule | None = None
+        self._command: QCommandRuleAction | None = None
         self._command_text: str = ''
         if cmd is not None:
             self.set_command(cmd)
 
-    def command(self) -> CommandRule | None:
+    def command(self) -> QCommandRuleAction | None:
         """The app-model Action bound to this label."""
         return self._command
 
-    def set_command(self, cmd: CommandRule) -> None:
+    def set_command(self, cmd: QCommandRuleAction) -> None:
         """Set command to this widget."""
-        command_text = _format_action_name(cmd)
+        rule = cmd._cmd_rule
+        command_text = _format_action_name(rule)
         self._command_text = command_text
         self._command = cmd
         self.setText(command_text)
-        self.setToolTip(cmd.tooltip)
+        self.setToolTip(rule.tooltip)
 
     def command_text(self) -> str:
         """The original command text."""
@@ -277,7 +267,6 @@ class QCommandList(QtW.QListView):
         self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
 
         self._match_color = '#468cc6'
-        self._app_model_context: dict[str, Any] = {}
 
     def _on_clicked(self, index: QtCore.QModelIndex) -> None:
         if index.isValid():
@@ -304,22 +293,22 @@ class QCommandList(QtW.QListView):
         return
 
     @property
-    def all_commands(self) -> list[CommandRule]:
+    def all_commands(self) -> list[QCommandRuleAction]:
         return self.model()._commands
 
-    def extend_command(self, commands: list[CommandRule]) -> None:
+    def extend_command(self, commands: list[QCommandRuleAction]) -> None:
         """Extend the list of commands."""
         self.all_commands.extend(commands)
         return
 
-    def command_at(self, index: int) -> CommandRule | None:
+    def command_at(self, index: int) -> QCommandRuleAction | None:
         i = index - self._index_offset
         index_widget = self.indexWidget(self.model().index(i))
         if index_widget is None:
             return None
         return index_widget.command()
 
-    def iter_command(self) -> Iterator[CommandRule]:
+    def iter_command(self) -> Iterator[QCommandRuleAction]:
         """Iterate over all the commands registered to this command list widget."""
         for i in range(self.model().rowCount()):
             if not self.isRowHidden(i):
@@ -334,7 +323,7 @@ class QCommandList(QtW.QListView):
         command = self.command_at(index)
         if command is None:
             return
-        _exec_action(command)
+        _exec_action(command._cmd_rule)
         # move to the top
         self.all_commands.remove(command)
         self.all_commands.insert(0, command)
@@ -346,7 +335,7 @@ class QCommandList(QtW.QListView):
         command = self.command_at(index)
         if command is None:
             return False
-        return _enabled(command, self._app_model_context)
+        return command.isEnabled()
 
     def update_for_text(self, input_text: str) -> None:
         """Update the list to match the input text."""
@@ -360,7 +349,7 @@ class QCommandList(QtW.QListView):
                 self._current_max_index = row
                 break
             lw.set_command(action)
-            if _enabled(action, self._app_model_context):
+            if action.isEnabled():
                 lw.set_text_colors(input_text, color=self._match_color)
             else:
                 lw.set_disabled()
@@ -378,13 +367,13 @@ class QCommandList(QtW.QListView):
         self.update()
         return
 
-    def iter_top_hits(self, input_text: str) -> Iterator[CommandRule]:
+    def iter_top_hits(self, input_text: str) -> Iterator[QCommandRuleAction]:
         """Iterate over the top hits for the input text"""
-        commands: list[tuple[float, CommandRule]] = []
+        commands: list[tuple[float, QCommandRuleAction]] = []
         for command in self.all_commands:
-            score = _match_score(command, input_text)
+            score = _match_score(command._cmd_rule, input_text)
             if score > 0.0:
-                if _enabled(command, self._app_model_context):
+                if command.isEnabled():
                     score += 10.0
                 commands.append((score, command))
         commands.sort(key=lambda x: x[0], reverse=True)
