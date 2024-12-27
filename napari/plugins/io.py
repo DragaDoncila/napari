@@ -287,6 +287,9 @@ def _is_null_layer_sentinel(layer_data: Any) -> bool:
     bool
         True, if the layer_data indicates an empty file, False otherwise
     """
+    # check individual tuple as well, not just list of single tuple
+    if not isinstance(layer_data, list):
+        layer_data = [layer_data]
     return (
         isinstance(layer_data, list)
         and len(layer_data) == 1

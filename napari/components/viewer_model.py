@@ -66,6 +66,7 @@ from napari.layers.surface._surface_key_bindings import surface_fun_to_mode
 from napari.layers.tracks._tracks_key_bindings import tracks_fun_to_mode
 from napari.layers.utils.stack_utils import split_channels
 from napari.layers.vectors._vectors_key_bindings import vectors_fun_to_mode
+from napari.plugins.io import _is_null_layer_sentinel
 from napari.plugins.utils import get_potential_readers, get_preferred_reader
 from napari.settings import get_settings
 from napari.types import (
@@ -1101,13 +1102,16 @@ class ViewerModel(KeymapProvider, MousemapProvider, EventedModel):
 
             raise KeyError(msg)
 
-        with layer_source(sample=(plugin, sample)):
-            if callable(data):
-                added = []
-                for datum in data(**kwargs):
-                    added.extend(self._add_layer_from_data(*datum))
-                return added
-            if isinstance(data, (str, Path)):
+        if callable(data):
+            added = []
+            for datum in data(**kwargs):
+                current_added = self._add_layer_or_tuple(
+                    datum, source_sample=(plugin, sample)
+                )
+                added.extend(current_added)
+            return added
+        if isinstance(data, (str, Path)):
+            with layer_source(sample=(plugin, sample)):
                 try:
                     return self.open(data, plugin=reader_plugin)
                 except Exception as e:
@@ -1128,15 +1132,15 @@ class ViewerModel(KeymapProvider, MousemapProvider, EventedModel):
                         ) from e
                     raise e  # noqa: TRY201
 
-            raise TypeError(
-                trans._(
-                    'Got unexpected type for sample ({plugin!r}, {sample!r}): {data_type}',
-                    deferred=True,
-                    plugin=plugin,
-                    sample=sample,
-                    data_type=type(data),
-                )
+        raise TypeError(
+            trans._(
+                'Got unexpected type for sample ({plugin!r}, {sample!r}): {data_type}',
+                deferred=True,
+                plugin=plugin,
+                sample=sample,
+                data_type=type(data),
             )
+        )
 
     def open(
         self,
@@ -1447,20 +1451,55 @@ class ViewerModel(KeymapProvider, MousemapProvider, EventedModel):
         added: list[Layer] = []  # for layers that get added
         plugin = hookimpl.plugin_name if hookimpl else None
         for data, filename in zip(layer_data, filenames):
-            basename, _ext = os.path.splitext(os.path.basename(filename))
             # actually add the layer
-            if isinstance(data, Layer):
-                data._set_source(Source(path=filename, reader_plugin=plugin))
-                lyr = self.add_layer(data)
-                current_added = [lyr]
-            else:
-                _data = _unify_data_and_user_kwargs(
-                    data, kwargs, layer_type, fallback_name=basename
-                )
-                with layer_source(path=filename, reader_plugin=plugin):
-                    current_added = self._add_layer_from_data(*_data)
+            current_added = self._add_layer_or_tuple(
+                data,
+                kwargs=kwargs,
+                layer_type=layer_type,
+                source_path=filename,
+                source_reader=plugin,
+            )
             added.extend(current_added)
         return added
+
+    def _add_layer_or_tuple(
+        self,
+        data: Union[Layer, LayerData],
+        kwargs: Optional[Dict] = None,
+        layer_type: Optional[str] = None,
+        source_path: Optional[str] = None,
+        source_reader: Optional[str] = None,
+        source_sample: Optional[tuple[str, str]] = None,
+    ):
+        if _is_null_layer_sentinel(data):
+            return []
+        if isinstance(data, Layer):
+            data._set_source(
+                Source(
+                    path=source_path,
+                    reader_plugin=source_reader,
+                    sample=source_sample,
+                )
+            )
+            lyr = self.add_layer(data)
+            current_added = [lyr]
+        else:
+            if source_path:
+                basename, _ext = os.path.splitext(
+                    os.path.basename(source_path)
+                )
+            else:
+                basename = None
+            _data = _unify_data_and_user_kwargs(
+                data, kwargs, layer_type, fallback_name=basename
+            )
+            with layer_source(
+                path=source_path,
+                reader_plugin=source_reader,
+                sample=source_sample,
+            ):
+                current_added = self._add_layer_from_data(*_data)
+        return current_added
 
     def _add_layer_from_data(
         self,
